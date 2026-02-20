@@ -1,5 +1,3 @@
-import type { Card } from '../../types/poker';
-import CardPicker from '../CardPicker';
 import { POSITION_LABELS_BY_COUNT } from './constants';
 
 interface Props {
@@ -7,12 +5,8 @@ interface Props {
   heroPosition: string;
   heroEffectiveStack: number;
   currency: string;
-  holeCard1: Card | null;
-  holeCard2: Card | null;
   onHeroPositionChange: (pos: string) => void;
   onHeroEffectiveStackChange: (val: number) => void;
-  onHoleCard1Change: (card: Card | null) => void;
-  onHoleCard2Change: (card: Card | null) => void;
 }
 
 export default function HeroSection({
@@ -20,12 +14,8 @@ export default function HeroSection({
   heroPosition,
   heroEffectiveStack,
   currency,
-  holeCard1,
-  holeCard2,
   onHeroPositionChange,
   onHeroEffectiveStackChange,
-  onHoleCard1Change,
-  onHoleCard2Change,
 }: Props) {
   const posLabels = POSITION_LABELS_BY_COUNT[playerCount];
 
@@ -66,13 +56,6 @@ export default function HeroSection({
               <option key={label} value={label}>{label}</option>
             ))}
           </select>
-        </div>
-        <div className="form-row">
-          <label>ホールカード <span className="hint">（任意）</span></label>
-          <div className="hole-cards">
-            <CardPicker value={holeCard1} onChange={onHoleCard1Change} label="1枚目" />
-            <CardPicker value={holeCard2} onChange={onHoleCard2Change} label="2枚目" />
-          </div>
         </div>
       </section>
     </>

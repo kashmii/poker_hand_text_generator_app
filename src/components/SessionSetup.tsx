@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { SessionConfig, Card } from '../types/poker';
+import type { SessionConfig } from '../types/poker';
 import { createDefaultPlayers } from '../context/AppContext';
 import { BLIND_PRESETS, POSITION_LABELS_BY_COUNT } from './setup/constants';
 import BlindSection from './setup/BlindSection';
@@ -34,8 +34,6 @@ export default function SessionSetup({ onStart }: Props) {
   // ヒーロー情報
   const [heroPosition, setHeroPosition] = useState('BTN');
   const [heroEffectiveStack, setHeroEffectiveStack] = useState(100);
-  const [holeCard1, setHoleCard1] = useState<Card | null>(null);
-  const [holeCard2, setHoleCard2] = useState<Card | null>(null);
 
   const handleCurrencyChange = (val: string) => {
     setCurrency(val);
@@ -55,9 +53,6 @@ export default function SessionSetup({ onStart }: Props) {
     const posLabels = POSITION_LABELS_BY_COUNT[playerCount];
     const heroIdx = posLabels.indexOf(heroPosition);
     const heroId = configPlayers[heroIdx]?.id ?? configPlayers[0].id;
-    const holeCards: [Card, Card] | undefined =
-      holeCard1 && holeCard2 ? [holeCard1, holeCard2] : undefined;
-
     onStart({
       smallBlind,
       bigBlind,
@@ -69,7 +64,6 @@ export default function SessionSetup({ onStart }: Props) {
       players: configPlayers,
       heroId,
       heroPosition,
-      heroHoleCards: holeCards,
       heroEffectiveStack,
     });
   };
@@ -125,12 +119,8 @@ export default function SessionSetup({ onStart }: Props) {
           heroPosition={heroPosition}
           heroEffectiveStack={heroEffectiveStack}
           currency={currency}
-          holeCard1={holeCard1}
-          holeCard2={holeCard2}
           onHeroPositionChange={setHeroPosition}
           onHeroEffectiveStackChange={setHeroEffectiveStack}
-          onHoleCard1Change={setHoleCard1}
-          onHoleCard2Change={setHoleCard2}
         />
 
         <div className="setup-footer">

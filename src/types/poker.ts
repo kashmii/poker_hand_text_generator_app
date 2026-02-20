@@ -58,7 +58,6 @@ export interface SessionConfig {
   players: Player[];
   heroId: string; // 自分のプレイヤーID
   heroPosition: string; // 'BTN', 'CO', etc.
-  heroHoleCards?: [Card, Card]; // Part1で入力するホールカード
   heroEffectiveStack: number; // ヒーローの実効スタック（BB単位）
 }
 
@@ -73,6 +72,7 @@ export interface HandData {
     turn?: StreetData;
     river?: StreetData;
   };
+  heroHoleCards?: [Card, Card]; // ヒーローのホールカード
   showdown?: ShowdownEntry[];
   pot: number; // 最終ポット
   winners: {

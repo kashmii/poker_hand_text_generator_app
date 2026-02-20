@@ -440,6 +440,14 @@ input[type="radio"] {
   min-width: 200px;
 }
 
+/* fixed版: 画面端でもはみ出さない */
+.card-picker__popup--fixed {
+  position: fixed;
+  top: 0;   /* JSで上書き */
+  left: 0;  /* JSで上書き */
+  max-width: calc(100vw - 16px);
+}
+
 .card-picker__ranks {
   display: flex;
   flex-wrap: wrap;
@@ -460,6 +468,15 @@ input[type="radio"] {
   background: var(--color-primary);
   color: #fff;
   border-color: var(--color-primary);
+}
+.rank-btn--used {
+  opacity: 0.3;
+  cursor: not-allowed;
+  text-decoration: line-through;
+}
+.suit-btn--used {
+  opacity: 0.3;
+  cursor: not-allowed;
 }
 
 .card-picker__suits {
@@ -756,4 +773,566 @@ input[type="radio"] {
   }
   .select-player { max-width: 100px; }
   .select-action { max-width: 90px; }
+}
+
+/* ===== HAND INPUT V2 (Phase 3) ===== */
+.hand-input-v2 {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  overflow: hidden;
+}
+
+.hand-input-v2__header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.6rem 1rem;
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+  flex-shrink: 0;
+}
+
+.hand-input-v2__title {
+  font-weight: 700;
+  font-size: 1rem;
+}
+
+.hand-input-v2__street {
+  margin-left: auto;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--color-primary);
+  background: #1e3a5f;
+  padding: 0.2rem 0.6rem;
+  border-radius: var(--radius-sm);
+  letter-spacing: 0.08em;
+}
+
+/* ===== POKER TABLE ===== */
+.hand-input-v2__table {
+  flex: 1 1 0;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem;
+  background: var(--color-bg);
+}
+
+.poker-table-wrap {
+  width: 100%;
+  max-width: 480px;
+  max-height: 100%;
+  aspect-ratio: 2.2 / 2;
+}
+
+.poker-table-svg {
+  width: 100%;
+  height: 100%;
+}
+
+@keyframes pulse-ring {
+  0%   { r: 0.16; opacity: 0.7; }
+  100% { r: 0.22; opacity: 0; }
+}
+.actor-pulse {
+  animation: pulse-ring 1.2s ease-out infinite;
+}
+
+/* ===== BOTTOM PANEL ===== */
+.hand-input-v2__bottom {
+  flex-shrink: 0;
+  background: var(--color-surface);
+  border-top: 1px solid var(--color-border);
+  padding: 0.75rem 1rem;
+  min-height: 220px;
+}
+
+/* ===== ACTION PANEL ===== */
+.action-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.action-panel--empty {
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-muted);
+}
+
+.action-panel__actor {
+  text-align: center;
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+}
+
+.actor-position {
+  font-weight: 800;
+  font-size: 1rem;
+  color: var(--color-text);
+}
+
+.action-buttons {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.5rem;
+}
+
+.action-btn {
+  padding: 0.8rem 0.4rem;
+  border-radius: var(--radius);
+  font-size: 0.85rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  border: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
+  min-height: 56px;
+  cursor: pointer;
+  transition: opacity 0.15s, transform 0.1s;
+}
+.action-btn:active { transform: scale(0.96); }
+
+.action-btn__amount {
+  font-size: 0.75rem;
+  font-weight: 600;
+  opacity: 0.85;
+}
+
+.action-btn--fold   { background: #4b2020; color: #fca5a5; }
+.action-btn--check  { background: #1a3a1a; color: #86efac; }
+.action-btn--call   { background: #1a2e4a; color: #93c5fd; }
+.action-btn--bet    { background: #3a2a00; color: #fcd34d; }
+.action-btn--raise  { background: #3a2a00; color: #fcd34d; }
+.action-btn--allin  { background: #4a1a3a; color: #f0abfc; }
+
+.action-back-btn {
+  width: 100%;
+  background: transparent;
+  color: var(--color-text-muted);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 0.45rem;
+  font-size: 0.82rem;
+  cursor: pointer;
+  margin-top: 0.25rem;
+}
+.action-back-btn:hover { background: var(--color-surface2); }
+
+/* ===== NUMPAD ===== */
+.numpad-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.numpad-presets {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.numpad-preset-btn {
+  flex: 1;
+  background: var(--color-surface2);
+  color: var(--color-text-muted);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 0.35rem 0;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.numpad-preset-btn:hover { background: var(--color-border); color: var(--color-text); }
+
+.numpad-display {
+  display: flex;
+  align-items: baseline;
+  gap: 0.3rem;
+  background: var(--color-surface2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 0.5rem 1rem;
+}
+
+.numpad-currency {
+  color: var(--color-text-muted);
+  font-size: 1rem;
+}
+
+.numpad-value {
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: var(--color-text);
+  flex: 1;
+  text-align: right;
+}
+
+.numpad-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.4rem;
+}
+
+.numpad-key {
+  background: var(--color-surface2);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 0.7rem;
+  font-size: 1.1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.1s;
+}
+.numpad-key:hover { background: var(--color-border); }
+.numpad-key--back { color: var(--color-danger); }
+
+.numpad-actions {
+  display: grid;
+  grid-template-columns: 1fr 2fr;
+  gap: 0.5rem;
+}
+
+.numpad-confirm { width: 100%; }
+.numpad-confirm:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* ===== BOARD INPUT ===== */
+.board-input-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.board-input__title {
+  text-align: center;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--color-primary);
+}
+
+.board-input__cards {
+  display: flex;
+  justify-content: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.board-input__card-slot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.board-input__card-label {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
+
+/* ===== BOARD SLOT（統合カード選択） ===== */
+.board-input__slots {
+  display: flex;
+  justify-content: center;
+  gap: 0.6rem;
+}
+
+.board-slot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  width: 62px;
+  height: 80px;
+  border-radius: var(--radius);
+  border: 2px solid var(--color-border);
+  background: var(--color-surface2);
+  cursor: pointer;
+  font-size: 1.2rem;
+  font-weight: 700;
+  transition: border-color 0.15s, background 0.15s;
+  flex-direction: column;
+  position: relative;
+}
+
+.board-slot--active {
+  border-color: var(--color-primary);
+  background: #1e3a5f;
+  box-shadow: 0 0 0 3px rgba(59,130,246,0.3);
+}
+
+.board-slot--filled {
+  border-color: var(--color-border);
+}
+
+.board-slot__card {
+  font-size: 1.25rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.board-slot__empty {
+  font-size: 1.1rem;
+  color: var(--color-text-muted);
+  font-weight: 400;
+}
+
+.board-slot__clear {
+  position: absolute;
+  top: 2px;
+  right: 4px;
+  font-size: 0.65rem;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  line-height: 1;
+}
+.board-slot__clear:hover { color: var(--color-danger); }
+
+/* ===== BOARD PICKER パネル ===== */
+.board-picker-panel {
+  background: var(--color-surface2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 0.6rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.board-picker__ranks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.board-picker__suits {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.suit-btn--large {
+  font-size: 1.8rem;
+  flex: 1;
+  padding: 0.5rem;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background 0.1s;
+}
+.suit-btn--large:hover { background: var(--color-border); }
+
+.board-input__actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.4rem;
+}
+/* 戻るボタンなし（1ボタン）のときは確定ボタンが全幅 */
+.board-input__actions:not(.board-input__actions--two) .board-input__confirm {
+  flex: 1;
+}
+/* 2ボタン横並び: 戻る1/3、確定2/3 */
+.board-input__actions--two .board-input__back {
+  flex: 1;
+}
+.board-input__actions--two .board-input__confirm {
+  flex: 2;
+}
+.board-input__confirm:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* ===== DONE STATE ===== */
+.hand-done {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.5rem 0;
+}
+
+.hand-done__msg {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--color-success);
+}
+
+.hand-done__actions {
+  display: flex;
+  gap: 0.75rem;
+  width: 100%;
+}
+
+/* ===== SHOWDOWN ===== */
+.showdown-progress {
+  text-align: center;
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+  margin-bottom: 0.5rem;
+  letter-spacing: 0.05em;
+}
+
+.showdown-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.showdown-panel__header {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  font-size: 1rem;
+}
+
+.showdown-panel__pos {
+  font-weight: 700;
+  font-size: 1.1rem;
+  color: var(--color-primary-light);
+  background: rgba(99,102,241,0.15);
+  padding: 0.1rem 0.5rem;
+  border-radius: var(--radius-sm);
+}
+
+.showdown-panel__name {
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.showdown-panel__label {
+  color: var(--color-text-muted);
+  font-size: 0.9rem;
+}
+
+.showdown-choose {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.showdown-btn {
+  flex: 1;
+  padding: 1rem;
+  border: none;
+  border-radius: var(--radius-md);
+  font-size: 1.2rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: opacity 0.15s, transform 0.1s;
+  letter-spacing: 0.1em;
+}
+.showdown-btn:active { transform: scale(0.97); }
+
+.showdown-btn--show {
+  background: #0d9488;
+  color: #fff;
+}
+.showdown-btn--show:hover { opacity: 0.88; }
+
+.showdown-btn--muck {
+  background: var(--color-surface2);
+  color: var(--color-text-muted);
+  border: 1px solid var(--color-border);
+}
+.showdown-btn--muck:hover { opacity: 0.75; }
+
+/* hero のホールカードプレビュー（ショーダウン時） */
+.showdown-preset {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.showdown-preset__cards {
+  display: flex;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 0.4rem 0;
+}
+
+.showdown-preset__card {
+  font-size: 1.8rem;
+  font-weight: 800;
+  background: #fff;
+  border-radius: var(--radius-sm);
+  padding: 0.1rem 0.5rem;
+  border: 1px solid #ccc;
+  min-width: 2.4rem;
+  text-align: center;
+}
+
+.showdown-card-actions {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 0.25rem;
+}
+
+/* ===== WINNER SELECTION ===== */
+.winner-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.winner-panel__title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--color-text);
+  text-align: center;
+}
+
+.winner-panel__pot {
+  text-align: center;
+  color: var(--color-text-muted);
+  font-size: 0.9rem;
+}
+
+.winner-panel__pot-amount {
+  color: #fbbf24;
+  font-weight: 700;
+  font-size: 1.1rem;
+}
+
+.winner-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.winner-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  background: var(--color-surface2);
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+  text-align: left;
+}
+.winner-btn:hover { border-color: var(--color-primary); }
+.winner-btn--selected {
+  border-color: #fbbf24;
+  background: rgba(251,191,36,0.1);
+}
+
+.winner-btn__pos {
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: var(--color-primary-light);
+  background: rgba(99,102,241,0.15);
+  padding: 0.1rem 0.45rem;
+  border-radius: var(--radius-sm);
+  min-width: 2.5rem;
+  text-align: center;
+}
+
+.winner-btn__name {
+  font-size: 0.95rem;
+  color: var(--color-text);
+}
+
+.winner-confirm-btn {
+  margin-top: 0.25rem;
 }

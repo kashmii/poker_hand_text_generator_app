@@ -150,6 +150,17 @@ input:focus, select:focus, textarea:focus {
   border-color: var(--color-primary);
 }
 
+/* numberインプットのスピナー非表示 */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
 input[type="radio"] {
   width: auto;
   accent-color: var(--color-primary);
@@ -160,6 +171,40 @@ input[type="radio"] {
 .input-stack { max-width: 80px; }
 .input-amount { max-width: 90px; }
 .input-desc { flex: 1; }
+.input-venue { flex: 1; }
+.input-date { max-width: 160px; }
+.input-blind { max-width: 160px; }
+
+.straddle-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.toggle-pill {
+  padding: 0.35rem 0.85rem;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  border: 1px solid var(--color-border);
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.toggle-pill--on {
+  background: var(--color-primary);
+  color: #fff;
+  border-color: var(--color-primary);
+}
+.toggle-pill--off {
+  background: var(--color-surface2);
+  color: var(--color-text-muted);
+}
+
+.straddle-value {
+  font-size: 0.9rem;
+  color: var(--color-primary);
+  font-weight: 600;
+  margin-left: 0.25rem;
+}
 
 .textarea-notes {
   resize: vertical;
@@ -208,6 +253,25 @@ input[type="radio"] {
   gap: 0;
 }
 
+.setup-footer {
+  padding: 1rem;
+  background: var(--color-surface);
+  border-top: 1px solid var(--color-border);
+  position: sticky;
+  bottom: 0;
+}
+
+.hero-position-badge {
+  display: inline-block;
+  background: var(--color-primary);
+  color: #fff;
+  font-weight: 700;
+  font-size: 0.9rem;
+  padding: 0.3rem 0.75rem;
+  border-radius: var(--radius-sm);
+  letter-spacing: 0.05em;
+}
+
 .players-table {
   display: flex;
   flex-direction: column;
@@ -223,11 +287,68 @@ input[type="radio"] {
   padding: 0 0.2rem;
 }
 
+.players-header--no-stack {
+  grid-template-columns: 70px 1fr 44px;
+}
+
 .player-row {
   display: grid;
   grid-template-columns: 70px 1fr 80px 50px;
   gap: 0.4rem;
   align-items: center;
+}
+
+.player-row--no-stack {
+  grid-template-columns: 70px 1fr 44px;
+}
+
+.position-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.25rem;
+}
+
+.position-chip {
+  background: var(--color-surface2);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 0.25rem 0.6rem;
+  border-radius: var(--radius-sm);
+}
+
+.section-desc {
+  font-size: 0.82rem;
+  color: var(--color-text-muted);
+  margin-bottom: 0.75rem;
+  line-height: 1.5;
+}
+
+.effective-stack-input {
+  display: flex;
+  align-items: center;
+  background: var(--color-surface2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  max-width: 130px;
+}
+.effective-stack-input:focus-within {
+  border-color: var(--color-primary);
+}
+.effective-stack-input .currency-prefix {
+  padding: 0.5rem 0.4rem 0.5rem 0.6rem;
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+  flex-shrink: 0;
+}
+.input-stack-value {
+  border: none !important;
+  background: transparent !important;
+  width: 80px;
+  padding: 0.5rem 0.4rem 0.5rem 0;
 }
 
 .position-label {

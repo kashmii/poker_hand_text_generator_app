@@ -1,177 +1,143 @@
 import { useState } from 'react';
-import type { SessionConfig, Player } from '../types/poker';
+import type { SessionConfig, Card } from '../types/poker';
 import { createDefaultPlayers } from '../context/AppContext';
+import { BLIND_PRESETS, POSITION_LABELS_BY_COUNT } from './setup/constants';
+import BlindSection from './setup/BlindSection';
+import PlayerSection from './setup/PlayerSection';
+import HeroSection from './setup/HeroSection';
 
 interface Props {
   onStart: (config: SessionConfig) => void;
 }
 
-const POSITION_LABELS_BY_COUNT: Record<number, string[]> = {
-  2: ['SB/BTN', 'BB'],
-  3: ['BTN', 'SB', 'BB'],
-  4: ['BTN', 'SB', 'BB', 'UTG'],
-  5: ['BTN', 'SB', 'BB', 'UTG', 'CO'],
-  6: ['BTN', 'SB', 'BB', 'UTG', 'HJ', 'CO'],
-  7: ['BTN', 'SB', 'BB', 'UTG', 'UTG+1', 'HJ', 'CO'],
-  8: ['BTN', 'SB', 'BB', 'UTG', 'UTG+1', 'UTG+2', 'HJ', 'CO'],
-  9: ['BTN', 'SB', 'BB', 'UTG', 'UTG+1', 'UTG+2', 'MP', 'HJ', 'CO'],
-};
-
 export default function SessionSetup({ onStart }: Props) {
-  const [playerCount, setPlayerCount] = useState(6);
-  const [smallBlind, setSmallBlind] = useState(1);
-  const [bigBlind, setBigBlind] = useState(2);
-  const [ante, setAnte] = useState(0);
+  // セッション情報
+  const [venueName, setVenueName] = useState('');
+  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+
+  // ブラインド設定
   const [currency, setCurrency] = useState('$');
-  const [players, setPlayers] = useState<Player[]>(createDefaultPlayers(6));
-  const [heroIdx, setHeroIdx] = useState(0);
+  const [blindPresetIdx, setBlindPresetIdx] = useState(0);
+  const [ante, setAnte] = useState(0);
+  const [straddleOn, setStraddleOn] = useState(false);
+
+  const currentPresets = BLIND_PRESETS[currency] ?? BLIND_PRESETS['$'];
+  const selectedPreset = currentPresets[blindPresetIdx] ?? currentPresets[0];
+  const smallBlind = selectedPreset.sb;
+  const bigBlind = selectedPreset.bb;
+  const straddle = straddleOn ? bigBlind * 2 : 0;
+
+  // プレイヤー設定
+  const [playerCount, setPlayerCount] = useState(6);
+  const [players, setPlayers] = useState(createDefaultPlayers(6));
+
+  // ヒーロー情報
+  const [heroPosition, setHeroPosition] = useState('BTN');
+  const [heroEffectiveStack, setHeroEffectiveStack] = useState(100);
+  const [holeCard1, setHoleCard1] = useState<Card | null>(null);
+  const [holeCard2, setHoleCard2] = useState<Card | null>(null);
+
+  const handleCurrencyChange = (val: string) => {
+    setCurrency(val);
+    setBlindPresetIdx(0);
+  };
 
   const handlePlayerCountChange = (count: number) => {
     setPlayerCount(count);
-    const newPlayers = createDefaultPlayers(count);
-    // 既存名を引き継ぐ
-    players.slice(0, count).forEach((p, i) => {
-      newPlayers[i].name = p.name;
-      newPlayers[i].stack = p.stack;
-    });
-    setPlayers(newPlayers);
-    if (heroIdx >= count) setHeroIdx(0);
-  };
-
-  const handlePlayerChange = (idx: number, field: 'name' | 'stack', value: string) => {
-    setPlayers((prev) => {
-      const next = [...prev];
-      next[idx] = {
-        ...next[idx],
-        [field]: field === 'stack' ? Number(value) : value,
-      };
-      return next;
-    });
+    setPlayers(createDefaultPlayers(count));
+    const newLabels = POSITION_LABELS_BY_COUNT[count];
+    if (!newLabels.includes(heroPosition)) setHeroPosition(newLabels[0]);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const configPlayers: Player[] = players.map((p, i) => ({
-      ...p,
-      position: i,
-    }));
+    const configPlayers = players.map((p, i) => ({ ...p, position: i }));
+    const posLabels = POSITION_LABELS_BY_COUNT[playerCount];
+    const heroIdx = posLabels.indexOf(heroPosition);
+    const heroId = configPlayers[heroIdx]?.id ?? configPlayers[0].id;
+    const holeCards: [Card, Card] | undefined =
+      holeCard1 && holeCard2 ? [holeCard1, holeCard2] : undefined;
+
     onStart({
       smallBlind,
       bigBlind,
       ante,
+      straddle,
       currency,
+      venueName,
+      date,
       players: configPlayers,
-      heroId: configPlayers[heroIdx].id,
+      heroId,
+      heroPosition,
+      heroHoleCards: holeCards,
+      heroEffectiveStack,
     });
   };
-
-  const posLabels = POSITION_LABELS_BY_COUNT[playerCount];
 
   return (
     <div className="session-setup">
       <h1 className="app-title">🃏 Poker Hand Logger</h1>
       <form onSubmit={handleSubmit} className="setup-form">
 
+        {/* セッション情報 */}
         <section className="form-section">
-          <h2>ブラインド設定</h2>
+          <h2>セッション情報</h2>
           <div className="form-row">
-            <label>通貨記号</label>
+            <label>店名 <span className="hint">（任意）</span></label>
             <input
               type="text"
-              value={currency}
-              onChange={(e) => setCurrency(e.target.value)}
-              maxLength={3}
-              className="input-small"
+              value={venueName}
+              onChange={(e) => setVenueName(e.target.value)}
+              placeholder="例: Lucky Casino"
+              className="input-venue"
             />
           </div>
           <div className="form-row">
-            <label>SB</label>
+            <label>日付</label>
             <input
-              type="number"
-              min={0.01}
-              step={0.01}
-              value={smallBlind}
-              onChange={(e) => setSmallBlind(Number(e.target.value))}
-              className="input-small"
-            />
-          </div>
-          <div className="form-row">
-            <label>BB</label>
-            <input
-              type="number"
-              min={0.01}
-              step={0.01}
-              value={bigBlind}
-              onChange={(e) => setBigBlind(Number(e.target.value))}
-              className="input-small"
-            />
-          </div>
-          <div className="form-row">
-            <label>アンティ <span className="hint">（0=なし）</span></label>
-            <input
-              type="number"
-              min={0}
-              step={0.01}
-              value={ante}
-              onChange={(e) => setAnte(Number(e.target.value))}
-              className="input-small"
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              className="input-date"
             />
           </div>
         </section>
 
-        <section className="form-section">
-          <h2>プレイヤー設定</h2>
-          <div className="form-row">
-            <label>人数</label>
-            <select
-              value={playerCount}
-              onChange={(e) => handlePlayerCountChange(Number(e.target.value))}
-              className="input-small"
-            >
-              {[2, 3, 4, 5, 6, 7, 8, 9].map((n) => (
-                <option key={n} value={n}>{n}人</option>
-              ))}
-            </select>
-          </div>
+        <BlindSection
+          currency={currency}
+          blindPresetIdx={blindPresetIdx}
+          ante={ante}
+          straddleOn={straddleOn}
+          bigBlind={bigBlind}
+          onCurrencyChange={handleCurrencyChange}
+          onBlindPresetChange={setBlindPresetIdx}
+          onAnteChange={setAnte}
+          onStraddleToggle={setStraddleOn}
+        />
 
-          <div className="players-table">
-            <div className="players-header">
-              <span>ポジション</span>
-              <span>名前</span>
-              <span>スタック</span>
-              <span>ヒーロー</span>
-            </div>
-            {players.map((p, i) => (
-              <div key={p.id} className="player-row">
-                <span className="position-label">{posLabels[i]}</span>
-                <input
-                  type="text"
-                  value={p.name}
-                  onChange={(e) => handlePlayerChange(i, 'name', e.target.value)}
-                  className="input-name"
-                  placeholder={`Player ${i + 1}`}
-                />
-                <input
-                  type="number"
-                  value={p.stack}
-                  min={1}
-                  onChange={(e) => handlePlayerChange(i, 'stack', e.target.value)}
-                  className="input-stack"
-                />
-                <input
-                  type="radio"
-                  name="hero"
-                  checked={heroIdx === i}
-                  onChange={() => setHeroIdx(i)}
-                />
-              </div>
-            ))}
-          </div>
-        </section>
+        <PlayerSection
+          playerCount={playerCount}
+          onPlayerCountChange={handlePlayerCountChange}
+        />
 
-        <button type="submit" className="btn-primary btn-full">
-          セッション開始
-        </button>
+        <HeroSection
+          playerCount={playerCount}
+          heroPosition={heroPosition}
+          heroEffectiveStack={heroEffectiveStack}
+          currency={currency}
+          holeCard1={holeCard1}
+          holeCard2={holeCard2}
+          onHeroPositionChange={setHeroPosition}
+          onHeroEffectiveStackChange={setHeroEffectiveStack}
+          onHoleCard1Change={setHoleCard1}
+          onHoleCard2Change={setHoleCard2}
+        />
+
+        <div className="setup-footer">
+          <button type="submit" className="btn-primary btn-full">
+            セッション開始 →
+          </button>
+        </div>
       </form>
     </div>
   );

@@ -51,9 +51,15 @@ export interface SessionConfig {
   smallBlind: number;
   bigBlind: number;
   ante: number; // 0 = なし
+  straddle: number; // 0 = なし
   currency: string; // '$', '€', '¥', 'BB' など
+  venueName: string; // 店名（任意）
+  date: string; // ISO date string 'YYYY-MM-DD'
   players: Player[];
   heroId: string; // 自分のプレイヤーID
+  heroPosition: string; // 'BTN', 'CO', etc.
+  heroHoleCards?: [Card, Card]; // Part1で入力するホールカード
+  heroEffectiveStack: number; // ヒーローの実効スタック（BB単位）
 }
 
 // ========== ハンド ==========

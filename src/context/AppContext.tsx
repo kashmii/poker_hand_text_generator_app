@@ -11,9 +11,14 @@ const defaultSession: SessionConfig = {
   smallBlind: 1,
   bigBlind: 2,
   ante: 0,
+  straddle: 0,
   currency: '$',
+  venueName: '',
+  date: new Date().toISOString().slice(0, 10),
   players: [],
   heroId: '',
+  heroPosition: '',
+  heroEffectiveStack: 100,
 };
 
 // ========== Context型 ==========

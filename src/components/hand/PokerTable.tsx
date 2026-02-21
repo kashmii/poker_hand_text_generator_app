@@ -72,9 +72,14 @@ export default function PokerTable({ players, state, actorId, heroId }: Props) {
       a.type === 'call' ? 'CALL' :
       a.type === 'bet' ? `BET` :
       a.type === 'raise' ? 'RAISE' :
-      a.type === 'allin' ? 'ALL-IN' : '';
+      a.type === 'allin' ? 'ALL-IN' :
+      a.type === 'straddle' ? 'STRADDLE' : '';
     currentActions[a.playerId] = label;
   });
+
+  // 現在ストリートのcontributions（テーブルに投資済みの額）
+  // プリフロップはSB/BB/straddleの強制投資も含まれる
+  const contributions = state.contributions;
 
   const streetLabel: Record<string, string> = {
     preflop: 'PREFLOP', flop: 'FLOP', turn: 'TURN', river: 'RIVER',
@@ -143,59 +148,72 @@ export default function PokerTable({ players, state, actorId, heroId }: Props) {
           const isHero = player.id === heroId;
           const actionText = currentActions[player.id] ?? '';
 
+          const contrib = contributions[player.id] ?? 0;
+          const showContrib = contrib > 0 && !isFolded;
+
           const bgColor = isFolded ? '#374151' : isAllIn ? '#4a1a3a' : isActor ? '#1d4ed8' : '#1e293b';
           const borderColor = isActor ? '#60a5fa' : isAllIn ? '#f0abfc' : isHero ? '#a78bfa' : '#475569';
 
           return (
-            <g key={player.id} transform={`translate(${pos.x}, ${pos.y})`}>
-              {/* アクター時のパルスリング */}
-              {isActor && (
-                <circle r="0.16" fill="none" stroke="#60a5fa" strokeWidth="0.015"
-                  opacity="0.5" className="actor-pulse" />
-              )}
-              {/* プレイヤーノード */}
-              <circle r="0.13" fill={bgColor} stroke={borderColor} strokeWidth="0.015" />
+            <g key={player.id}>
+              <g transform={`translate(${pos.x}, ${pos.y})`}>
+                {/* アクター時のパルスリング */}
+                {isActor && (
+                  <circle r="0.16" fill="none" stroke="#60a5fa" strokeWidth="0.015"
+                    opacity="0.5" className="actor-pulse" />
+                )}
+                {/* プレイヤーノード */}
+                <circle r="0.13" fill={bgColor} stroke={borderColor} strokeWidth="0.015" />
 
-              {/* ポジションラベル */}
-              <text x="0" y="-0.04" textAnchor="middle"
-                fontSize="0.07" fill={isHero ? '#c4b5fd' : '#94a3b8'} fontWeight="bold">
-                {posLabel}
-              </text>
+                {/* ベット額（ノードの上、ポジションラベルの上） */}
+                {showContrib && (
+                  <text x="0" y="-0.175" textAnchor="middle"
+                    fontSize="0.075" fill="#f87171" fontWeight="bold">
+                    {contrib.toLocaleString()}
+                  </text>
+                )}
 
-              {/* アクション表示 */}
-              <text x="0" y="0.06" textAnchor="middle"
-                fontSize="0.065"
-                fill={isFolded ? '#6b7280' : isAllIn ? '#f0abfc' : '#fbbf24'}
-                fontWeight="bold">
-                {isFolded ? 'FOLD' : isAllIn ? 'ALL-IN' : actionText}
-              </text>
-
-              {/* ヒーロー: ホールカード表示（ノードの下） */}
-              {isHero && hasHoleCards && !isFolded && (
-                <g transform="translate(0, 0.17)">
-                  {holeCards!.map((card, ci) => {
-                    const cx = ci === 0 ? -0.11 : 0.11;
-                    const color = SUIT_COLORS[card.suit] ?? '#333';
-                    return (
-                      <g key={ci} transform={`translate(${cx}, 0)`}>
-                        <rect x="-0.085" y="-0.01" width="0.17" height="0.21"
-                          rx="0.02" fill="#fff" stroke="#aaa" strokeWidth="0.008" />
-                        <text x="0" y="0.155" textAnchor="middle"
-                          fontSize="0.115" fill={color} fontWeight="bold">
-                          {cardLabel(card)}
-                        </text>
-                      </g>
-                    );
-                  })}
-                </g>
-              )}
-
-              {/* ヒーロー印（ホールカードがない場合のみ表示） */}
-              {isHero && !hasHoleCards && !isFolded && (
-                <text x="0" y="0.165" textAnchor="middle" fontSize="0.06" fill="#a78bfa">
-                  HERO
+                {/* ポジションラベル */}
+                <text x="0" y="-0.04" textAnchor="middle"
+                  fontSize="0.07" fill={isHero ? '#c4b5fd' : '#94a3b8'} fontWeight="bold">
+                  {posLabel}
                 </text>
-              )}
+
+                {/* アクション表示 */}
+                <text x="0" y="0.06" textAnchor="middle"
+                  fontSize="0.065"
+                  fill={isFolded ? '#6b7280' : isAllIn ? '#f0abfc' : '#fbbf24'}
+                  fontWeight="bold">
+                  {isFolded ? 'FOLD' : isAllIn ? 'ALL-IN' : actionText}
+                </text>
+
+                {/* ヒーロー: ホールカード表示（ノードの下） */}
+                {isHero && hasHoleCards && !isFolded && (
+                  <g transform="translate(0, 0.17)">
+                    {holeCards!.map((card, ci) => {
+                      const cx = ci === 0 ? -0.11 : 0.11;
+                      const color = SUIT_COLORS[card.suit] ?? '#333';
+                      return (
+                        <g key={ci} transform={`translate(${cx}, 0)`}>
+                          <rect x="-0.085" y="-0.01" width="0.17" height="0.21"
+                            rx="0.02" fill="#fff" stroke="#aaa" strokeWidth="0.008" />
+                          <text x="0" y="0.155" textAnchor="middle"
+                            fontSize="0.115" fill={color} fontWeight="bold">
+                            {cardLabel(card)}
+                          </text>
+                        </g>
+                      );
+                    })}
+                  </g>
+                )}
+
+                {/* ヒーロー印（ホールカードがない場合のみ表示） */}
+                {isHero && !hasHoleCards && !isFolded && (
+                  <text x="0" y="0.165" textAnchor="middle" fontSize="0.06" fill="#a78bfa">
+                    HERO
+                  </text>
+                )}
+              </g>
             </g>
           );
         })}

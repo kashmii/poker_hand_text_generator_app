@@ -8,6 +8,7 @@ import ActionPanel from './hand/ActionPanel';
 import BoardInput from './hand/BoardInput';
 import { ShowdownPlayerPanel, WinnerPanel } from './hand/ShowdownPanel';
 import type { RecordedAction } from './hand/types';
+import { pickRandomCards } from '../utils/randomCard';
 
 const RANKS: Rank[] = ['A', 'K', 'Q', 'J', 'T', '9', '8', '7', '6', '5', '4', '3', '2'];
 const SUITS: { value: Suit; label: string; color: string }[] = [
@@ -67,8 +68,13 @@ export default function HandInput({ session, handNumber, onSave, onCancel, onUpd
     const card: Card = { rank: holePendingRank, suit: s };
     const next: [Card | null, Card | null] = [...holeCards] as [Card | null, Card | null];
     next[holeSlot] = card;
-    setHoleCards(next);
     setHolePendingRank(null);
+    // 両スロット埋まったら自動確定
+    if (next[0] && next[1]) {
+      confirmHoleCards(next[0], next[1]);
+      return;
+    }
+    setHoleCards(next);
     // 次の空きスロットへ
     if (holeSlot === 0 && next[1] === null) setHoleSlot(1);
     else if (holeSlot === 1 && next[0] === null) setHoleSlot(0);
@@ -80,12 +86,6 @@ export default function HandInput({ session, handNumber, onSave, onCancel, onUpd
     setHoleCards(next);
     setHoleSlot(idx);
     setHolePendingRank(null);
-  };
-
-  const handleHoleConfirm = () => {
-    if (holeCards[0] && holeCards[1]) {
-      confirmHoleCards(holeCards[0], holeCards[1]);
-    }
   };
 
   const cardDisp = (card: Card | null) => {
@@ -266,7 +266,33 @@ export default function HandInput({ session, handNumber, onSave, onCancel, onUpd
         ) : isHoleCardsPhase ? (
           /* ホールカード入力 */
           <div className="board-input-wrap">
-            <div className="board-input__title">ホールカード</div>
+            <div className="board-input__title">
+              ホールカード
+              {import.meta.env.DEV && (
+                <button
+                  type="button"
+                  className="rndm-btn"
+                  onClick={() => {
+                    const filled = holeCards.filter((c): c is Card => c !== null);
+                    const need = holeCards.filter((c) => c === null).length;
+                    const picked = pickRandomCards(filled, need);
+                    const next: [Card | null, Card | null] = [...holeCards] as [Card | null, Card | null];
+                    let pi = 0;
+                    next.forEach((c, i) => { if (c === null && pi < picked.length) next[i] = picked[pi++]; });
+                    setHolePendingRank(null);
+                    // 両スロット埋まったら自動確定
+                    if (next[0] && next[1]) {
+                      confirmHoleCards(next[0], next[1]);
+                    } else {
+                      setHoleCards(next);
+                    }
+                  }}
+                  disabled={holeAllFilled}
+                >
+                  rndm
+                </button>
+              )}
+            </div>
 
             <div className="board-input__slots">
               {([0, 1] as const).map((idx) => {
@@ -334,21 +360,13 @@ export default function HandInput({ session, handNumber, onSave, onCancel, onUpd
               </div>
             </div>
 
-            <div className="board-input__actions board-input__actions--two">
+            <div className="board-input__actions">
               <button
                 type="button"
                 className="btn-secondary board-input__back"
                 onClick={() => onUpdateSession({ heroPosition: '', heroId: players[0]?.id ?? '' })}
               >
                 ← 戻る
-              </button>
-              <button
-                type="button"
-                className="btn-primary board-input__confirm"
-                onClick={handleHoleConfirm}
-                disabled={!holeAllFilled}
-              >
-                ハンド確定 →
               </button>
             </div>
           </div>

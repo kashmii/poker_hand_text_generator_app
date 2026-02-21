@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { Card, Rank, Suit, Player } from '../../types/poker';
 import type { ShowdownRecord } from './types';
+import { pickRandomCards } from '../../utils/randomCard';
 
 const RANKS: Rank[] = ['A', 'K', 'Q', 'J', 'T', '9', '8', '7', '6', '5', '4', '3', '2'];
 const SUITS: { value: Suit; label: string; color: string }[] = [
@@ -79,6 +80,18 @@ export function ShowdownPlayerPanel({
     setPendingRank(null);
   };
 
+  // DEV only: 未入力スロットをランダムに埋める
+  const handleRandomFill = () => {
+    const filled = cards.filter((c): c is Card => c !== null);
+    const need = cards.filter((c) => c === null).length;
+    const picked = pickRandomCards([...usedCards, ...filled], need);
+    const next: [Card | null, Card | null] = [...cards] as [Card | null, Card | null];
+    let pi = 0;
+    next.forEach((_, i) => { if (next[i] === null && pi < picked.length) next[i] = picked[pi++]; });
+    setCards(next);
+    setPendingRank(null);
+  };
+
   const handleShow = () => {
     if (cards[0] && cards[1]) {
       onCommit({ playerId: player.id, action: 'show', cards: [cards[0], cards[1]] });
@@ -151,6 +164,18 @@ export function ShowdownPlayerPanel({
         </div>
       ) : (
         <div className="board-input-wrap">
+          {import.meta.env.DEV && (
+            <div className="board-input__title">
+              <button
+                type="button"
+                className="rndm-btn"
+                onClick={handleRandomFill}
+                disabled={cards[0] !== null && cards[1] !== null}
+              >
+                rndm
+              </button>
+            </div>
+          )}
           {/* カードスロット */}
           <div className="board-input__slots">
             {([0, 1] as const).map((idx) => {

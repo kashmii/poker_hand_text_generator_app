@@ -1193,10 +1193,37 @@ input[type='radio'] {
 }
 
 .board-input__title {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
   text-align: center;
   font-size: 1rem;
   font-weight: 700;
   color: var(--color-primary);
+}
+
+/* 開発用ランダム入力ボタン */
+.rndm-btn {
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 0.1rem 0.35rem;
+  border-radius: 4px;
+  border: 1px solid #4b5563;
+  background: #1f2937;
+  color: #9ca3af;
+  cursor: pointer;
+  letter-spacing: 0.03em;
+  line-height: 1.4;
+  transition: background 0.15s, color 0.15s;
+}
+.rndm-btn:hover:not(:disabled) {
+  background: #374151;
+  color: #d1d5db;
+}
+.rndm-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
 }
 
 .board-input__cards {

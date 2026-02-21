@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { Card, Rank, Suit } from '../../types/poker';
 import type { Street } from './types';
+import { pickRandomCards } from '../../utils/randomCard';
 
 const RANKS: Rank[] = ['A', 'K', 'Q', 'J', 'T', '9', '8', '7', '6', '5', '4', '3', '2'];
 const SUITS: { value: Suit; label: string; color: string }[] = [
@@ -80,15 +81,21 @@ export default function BoardInput({ street, cards, usedCards = [], onCardChange
   const handleSuit = (s: Suit) => {
     if (pendingRank === null || activeSlot === null) return;
     if (isSuitUsed(pendingRank, s)) return;
+    const newCards = cards.map((c, i) => (i === activeSlot ? { rank: pendingRank, suit: s } : c));
     onCardChange(activeSlot, { rank: pendingRank, suit: s });
     setPendingRank(null);
+    // 全スロットが埋まったら自動確定
+    if (newCards.every((c) => c !== null)) {
+      setActiveSlot(null);
+      onConfirm();
+      return;
+    }
     // 次の空きスロットへ自動移動
-    const nextEmpty = cards.findIndex((c, i) => i > activeSlot && c === null);
+    const nextEmpty = newCards.findIndex((c, i) => i > activeSlot && c === null);
     if (nextEmpty !== -1) {
       setActiveSlot(nextEmpty);
     } else {
-      // 前の空きも探す（全体から）
-      const anyEmpty = cards.findIndex((c, i) => i !== activeSlot && c === null);
+      const anyEmpty = newCards.findIndex((c, i) => i !== activeSlot && c === null);
       setActiveSlot(anyEmpty !== -1 ? anyEmpty : null);
     }
   };
@@ -99,9 +106,40 @@ export default function BoardInput({ street, cards, usedCards = [], onCardChange
     setPendingRank(null);
   };
 
+  // DEV only: 未入力スロットをランダムに埋めて自動確定
+  const handleRandomFill = () => {
+    const alreadyFilled = cards.filter((c): c is Card => c !== null);
+    const need = cards.filter((c) => c === null).length;
+    const picked = pickRandomCards([...usedCards, ...alreadyFilled], need);
+    let pickIdx = 0;
+    cards.forEach((c, i) => {
+      if (c === null && pickIdx < picked.length) {
+        onCardChange(i, picked[pickIdx++]);
+      }
+    });
+    setPendingRank(null);
+    setActiveSlot(null);
+    // 全スロットが埋まる（空きが全部picked）なら自動確定
+    if (need === picked.length) {
+      onConfirm();
+    }
+  };
+
   return (
     <div className="board-input-wrap">
-      <div className="board-input__title">{label}のカードを入力</div>
+      <div className="board-input__title">
+        {label}のカードを入力
+        {import.meta.env.DEV && (
+          <button
+            type="button"
+            className="rndm-btn"
+            onClick={handleRandomFill}
+            disabled={allFilled}
+          >
+            rndm
+          </button>
+        )}
+      </div>
 
       {/* カードスロット群 */}
       <div className="board-input__slots">
@@ -174,8 +212,8 @@ export default function BoardInput({ street, cards, usedCards = [], onCardChange
         </div>
       </div>
 
-      <div className={`board-input__actions ${onBack ? 'board-input__actions--two' : ''}`}>
-        {onBack && (
+      {onBack && (
+        <div className="board-input__actions">
           <button
             type="button"
             className="btn-secondary board-input__back"
@@ -183,16 +221,8 @@ export default function BoardInput({ street, cards, usedCards = [], onCardChange
           >
             ← 1手戻る
           </button>
-        )}
-        <button
-          type="button"
-          className="btn-primary board-input__confirm"
-          onClick={onConfirm}
-          disabled={!allFilled}
-        >
-          確定 →
-        </button>
-      </div>
+        </div>
+      )}
     </div>
   );
 }

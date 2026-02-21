@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { SessionConfig } from '../types/poker';
 import { createDefaultPlayers } from '../context/AppContext';
-import { BLIND_PRESETS, POSITION_LABELS_BY_COUNT } from './setup/constants';
+import { BLIND_PRESETS } from './setup/constants';
 import BlindSection from './setup/BlindSection';
 import PlayerSection from './setup/PlayerSection';
 import HeroSection from './setup/HeroSection';
@@ -19,13 +19,11 @@ export default function SessionSetup({ onStart }: Props) {
   const [currency, setCurrency] = useState('$');
   const [blindPresetIdx, setBlindPresetIdx] = useState(0);
   const [ante, setAnte] = useState(0);
-  const [straddleOn, setStraddleOn] = useState(false);
 
   const currentPresets = BLIND_PRESETS[currency] ?? BLIND_PRESETS['$'];
   const selectedPreset = currentPresets[blindPresetIdx] ?? currentPresets[0];
   const smallBlind = selectedPreset.sb;
   const bigBlind = selectedPreset.bb;
-  const straddle = straddleOn ? bigBlind * 2 : 0;
 
   // プレイヤー設定
   const [playerCount, setPlayerCount] = useState(6);
@@ -53,7 +51,7 @@ export default function SessionSetup({ onStart }: Props) {
       smallBlind,
       bigBlind,
       ante,
-      straddle,
+      straddle: 0,
       currency,
       venueName,
       date,
@@ -97,12 +95,9 @@ export default function SessionSetup({ onStart }: Props) {
           currency={currency}
           blindPresetIdx={blindPresetIdx}
           ante={ante}
-          straddleOn={straddleOn}
-          bigBlind={bigBlind}
           onCurrencyChange={handleCurrencyChange}
           onBlindPresetChange={setBlindPresetIdx}
           onAnteChange={setAnte}
-          onStraddleToggle={setStraddleOn}
         />
 
         <PlayerSection

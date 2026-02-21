@@ -72,10 +72,25 @@ describe('buildPreflopOrder', () => {
   });
 
   describe('ストラドルあり', () => {
-    const ids = ['btn', 'sb', 'bb', 'utg'];
+    it('4way: UTGがストラドル投資者 → BTNから始まりUTGが最後', () => {
+      // 4way: [btn=0, sb=1, bb=2, utg=3]
+      // ストラドルあり: UTGが投資済み → [btn, sb, bb, utg]
+      const ids = ['btn', 'sb', 'bb', 'utg'];
+      const order = buildPreflopOrder(ids, 100);
+      expect(order).toEqual(['btn', 'sb', 'bb', 'utg']);
+    });
 
-    it('ストラドルなしと順序が変わらない（BBは常に最後）', () => {
-      // ストラドルの有無によらずBBは最後
+    it('6way: UTGがストラドル投資者 → HJから始まりUTGが最後', () => {
+      // 6way: [btn=0, sb=1, bb=2, utg=3, hj=4, co=5]
+      // ストラドルあり: [hj, co, btn, sb, bb, utg]
+      const ids = ['btn', 'sb', 'bb', 'utg', 'hj', 'co'];
+      const order = buildPreflopOrder(ids, 100);
+      expect(order).toEqual(['hj', 'co', 'btn', 'sb', 'bb', 'utg']);
+    });
+
+    it('3way（UTGなし）: ストラドルなしと同じ順序', () => {
+      // 3way: count=3 なので straddle > 0 && count > 3 の条件に入らない
+      const ids = ['btn', 'sb', 'bb'];
       const withStraddle    = buildPreflopOrder(ids, 100);
       const withoutStraddle = buildPreflopOrder(ids, 0);
       expect(withStraddle).toEqual(withoutStraddle);

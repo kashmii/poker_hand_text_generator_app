@@ -59,17 +59,6 @@ function goToFlop3way(
   act(() => { result.current.confirmBoard(); });
 }
 
-/** プリフロップを全員コールで終わらせてフロップへ進めるヘルパー（4way） */
-function goToFlop4way(
-  result: ReturnType<typeof renderHook<ReturnType<typeof useHandFlow>, SessionConfig>>['result'],
-) {
-  skipHoleCards(result);
-  act(() => { result.current.commitAction('call'); });   // UTG call
-  act(() => { result.current.commitAction('call'); });   // BTN call
-  act(() => { result.current.commitAction('call'); });   // SB call
-  act(() => { result.current.commitAction('check'); });  // BB check
-  act(() => { result.current.confirmBoard(); });
-}
 
 // ========== テスト ==========
 

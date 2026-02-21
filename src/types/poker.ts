@@ -14,7 +14,8 @@ export type ActionType =
   | 'call'
   | 'bet'
   | 'raise'
-  | 'allin';
+  | 'allin'
+  | 'straddle';
 
 export interface Action {
   playerId: string;

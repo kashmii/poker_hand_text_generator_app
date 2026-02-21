@@ -10,6 +10,8 @@ interface Props {
   pot: number;
   currency: string;
   canGoBack: boolean;
+  canStraddle: boolean;
+  straddleAmount: number;
   onAction: (type: ActionType, amount?: number) => void;
   onBack: () => void;
 }
@@ -26,6 +28,8 @@ export default function ActionPanel({
   pot,
   currency,
   canGoBack,
+  canStraddle,
+  straddleAmount,
   onAction,
   onBack,
 }: Props) {
@@ -187,6 +191,17 @@ export default function ActionPanel({
           >
             {currentBet > 0 ? 'RAISE' : 'BET'}
           </button>
+
+          {canStraddle && (
+            <button
+              type="button"
+              className="action-btn action-btn--straddle"
+              onClick={() => onAction('straddle')}
+            >
+              STRADDLE
+              <span className="action-btn__amount">{currency}{straddleAmount.toLocaleString()}</span>
+            </button>
+          )}
         </div>
       )}
 

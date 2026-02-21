@@ -28,17 +28,24 @@ export function buildPreflopOrder(playerIds: string[], straddle: number): string
     // HU: BTN(SB)が先、BBが後
     return [playerIds[0], playerIds[1]];
   }
-  // 3人以上: index 3(UTG)から始まって一周し、SB(1)、BB(2) で終わる
+  if (straddle > 0 && count > 3) {
+    // ストラドルあり（4人以上）:
+    // UTG(index=3)がストラドル投資者 → HJ(index=4)から始まり、UTGが最後
+    // 例(6人): [HJ, CO, BTN, SB, BB, UTG]
+    const order: string[] = [];
+    for (let i = 4; i < count; i++) order.push(playerIds[i]); // HJ〜CO
+    order.push(playerIds[0]); // BTN
+    order.push(playerIds[1]); // SB
+    order.push(playerIds[2]); // BB
+    order.push(playerIds[3]); // UTG（ストラドル投資者、最後にアクション）
+    return order;
+  }
+  // 3人以上ストラドルなし: UTG(index=3)から始まって一周し、SB(1)、BB(2) で終わる
   const order: string[] = [];
   for (let i = 3; i < count; i++) order.push(playerIds[i]);
   order.push(playerIds[0]); // BTN
   order.push(playerIds[1]); // SB
-  if (straddle > 0) {
-    // ストラドルあり: BB が先行投資済みなので UTG 扱いで BB を最後に
-    order.push(playerIds[2]); // BB (ストラドル有りのとき最後)
-  } else {
-    order.push(playerIds[2]); // BB
-  }
+  order.push(playerIds[2]); // BB
   return order;
 }
 
@@ -104,11 +111,15 @@ function buildShowdownQueue(
 
 
 export function useHandFlow(session: SessionConfig) {
-  const { players, straddle, smallBlind, bigBlind } = session;
+  const { players, smallBlind, bigBlind } = session;
   const playerIds = players.map((p) => p.id);
 
-  // プリフロップのアクション順
-  const preflopOrder = buildPreflopOrder(playerIds, straddle);
+  // ストラドル額を動的に管理（アクション中にstraddleが決まる）
+  const [currentStraddle, setCurrentStraddle] = useState<number>(0);
+  // preflopOrderも動的に管理（straddle確定後に再構築）
+  const [preflopOrder, setPreflopOrder] = useState<string[]>(() =>
+    buildPreflopOrder(playerIds, 0),
+  );
 
   // SB/BB の強制投資を初期 contributions に反映
   const initContributions = (): Record<string, number> => {
@@ -122,6 +133,7 @@ export function useHandFlow(session: SessionConfig) {
         c[playerIds[0]] = smallBlind; // HU: BTN=SB
         c[playerIds[1]] = bigBlind;
       }
+      // ストラドルは後から動的に設定されるため初期は0
     }
     return c;
   };
@@ -133,16 +145,16 @@ export function useHandFlow(session: SessionConfig) {
     currentActorIdx: 0,
     foldedIds: new Set(),
     allInIds: new Set(),
-    currentBet: straddle > 0 ? straddle : bigBlind,
+    currentBet: bigBlind,
     contributions: initContributions(),
-    pot: smallBlind + bigBlind + straddle,
+    pot: smallBlind + bigBlind,
     phase: 'hole-cards',
     holeCards: null,
     showdownQueue: [],
     showdownRecords: [],
     winnerId: null,
     // プリフロップ開始時: BBが必ず最後にアクションする締め切り人
-    closingPlayerId: preflopOrder[preflopOrder.length - 1] ?? null,
+    closingPlayerId: buildPreflopOrder(playerIds, 0)[buildPreflopOrder(playerIds, 0).length - 1] ?? null,
   });
 
   // 履歴スタック（「戻る」用）
@@ -153,19 +165,19 @@ export function useHandFlow(session: SessionConfig) {
    * currentActorIdx はこのリスト上のインデックスとして管理する。
    */
   const activeOrder = useCallback(
-    (s: HandFlowState): string[] => {
+    (s: HandFlowState, order: string[]): string[] => {
       if (s.currentStreet === 'preflop') {
-        return preflopOrder.filter((id) => !s.foldedIds.has(id) && !s.allInIds.has(id));
+        return order.filter((id) => !s.foldedIds.has(id) && !s.allInIds.has(id));
       }
       return buildPostflopOrder(playerIds, s.foldedIds, s.allInIds);
     },
-    [preflopOrder, playerIds],
+    [playerIds],
   );
 
   /** 現在のアクターID */
-  const currentActorId = (s: HandFlowState): string | null => {
-    const order = activeOrder(s);
-    return order[s.currentActorIdx] ?? null;
+  const currentActorId = (s: HandFlowState, order: string[]): string | null => {
+    const ao = activeOrder(s, order);
+    return ao[s.currentActorIdx] ?? null;
   };
 
   /** コール額 */
@@ -220,9 +232,83 @@ export function useHandFlow(session: SessionConfig) {
   /** アクションを実行 */
   const commitAction = useCallback(
     (type: ActionType, amount?: number) => {
+      // straddleアクションは特別処理（preflopOrderを再構築してstateを更新）
+      if (type === 'straddle') {
+        // 次のストラドル額: 現在のcurrentBetの2倍（初回はbigBlind*2）
+        const straddleAmount = state.currentBet * 2;
+        setState((prev) => {
+          const order = activeOrder(prev, preflopOrder);
+          const actorId = order[prev.currentActorIdx];
+          if (!actorId) return prev;
+
+          const playerLabel = players[players.findIndex((p) => p.id === actorId)]?.name ?? actorId;
+
+          const recorded: RecordedAction = {
+            playerId: actorId,
+            playerLabel,
+            type: 'straddle',
+            amount: straddleAmount,
+          };
+
+          const newStreets = {
+            ...prev.streets,
+            preflop: [...prev.streets.preflop, recorded],
+          };
+
+          // ストラドル投資分をcontributionsとpotに反映
+          const newContributions = { ...prev.contributions };
+          const prevContrib = newContributions[actorId] ?? 0;
+          const added = straddleAmount - prevContrib;
+          newContributions[actorId] = straddleAmount;
+          const newPot = prev.pot + (added > 0 ? added : 0);
+
+          // straddleをstate外で管理
+          setCurrentStraddle(straddleAmount);
+
+          // 新しいpreflopOrderを構築（straddleしたプレイヤーを末尾へ）
+          // ストラドルしたアクターの次のプレイヤーから始まり、アクターが最後になる順番
+          const actorInPreflopIdx = preflopOrder.indexOf(actorId);
+          let newOrder: string[];
+          if (actorInPreflopIdx >= 0) {
+            // ストラドルしたプレイヤーの次から始まり、ストラドルプレイヤーが末尾
+            const after = preflopOrder.slice(actorInPreflopIdx + 1);
+            const before = preflopOrder.slice(0, actorInPreflopIdx);
+            newOrder = [...after, ...before, actorId];
+          } else {
+            newOrder = preflopOrder;
+          }
+          setPreflopOrder(newOrder);
+
+          // 新しいactiveOrder（fold/allin除外）
+          const newActiveOrder = newOrder.filter(
+            (id) => !prev.foldedIds.has(id) && !prev.allInIds.has(id),
+          );
+
+          // ストラドル後: 次のプレイヤー（新orderの先頭）がアクター
+          const newActorIdx = 0;
+
+          // closingPlayerId: ストラドラー（末尾）が締め切り人
+          const newClosingPlayerId = newActiveOrder[newActiveOrder.length - 1] ?? null;
+
+          return {
+            ...prev,
+            streets: newStreets,
+            contributions: newContributions,
+            currentBet: straddleAmount,
+            pot: newPot,
+            currentActorIdx: newActorIdx,
+            closingPlayerId: newClosingPlayerId,
+            phase: 'action',
+          };
+        });
+
+        setHistory((h) => [...h, state]);
+        return;
+      }
+
       setState((prev) => {
         // アクション前のアクティブ順でアクターを特定
-        const order = activeOrder(prev);
+        const order = activeOrder(prev, preflopOrder);
         const actorId = order[prev.currentActorIdx];
         if (!actorId) return prev;
 
@@ -299,7 +385,7 @@ export function useHandFlow(session: SessionConfig) {
             // allinでnewOrderから除かれた場合: newOrderの末尾が締め切り人
             newClosingPlayerId = newOrder[newOrder.length - 1] ?? null;
           }
-        } else if ((type === 'fold' || type === 'allin') && prev.closingPlayerId !== null) {
+        } else if (type === 'fold' && prev.closingPlayerId !== null) {
           if (!newOrder.includes(prev.closingPlayerId)) {
             newClosingPlayerId = newOrder[newOrder.length - 1] ?? null;
           }
@@ -373,7 +459,7 @@ export function useHandFlow(session: SessionConfig) {
       setHistory((h) => [...h, state]);
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [state, activeOrder, preflopOrder, players, playerIds],
+    [state, activeOrder, preflopOrder, players, playerIds, bigBlind],
   );
 
   /** ホールカードを確定してアクションフェーズへ */
@@ -458,9 +544,63 @@ export function useHandFlow(session: SessionConfig) {
     });
   }, []);
 
-  const actorId = currentActorId(state);
+  const actorId = currentActorId(state, preflopOrder);
   const actorPlayer = players.find((p) => p.id === actorId) ?? null;
   const toCall = actorId ? callAmount(state, actorId) : 0;
+
+  /**
+   * ストラドルボタンを表示するかどうかを判定する。
+   * - プリフロップのみ
+   * - UTG（preflopOrder[0]、straddleなしの場合）またはストラドル連鎖中のプレイヤーがアクター
+   * - プレイヤー数が4人以上（UTGが存在する）
+   * - まだbet/raise/call/fold等のアクションが行われていない状態ではなく、
+   *   ストラドル可能なプレイヤーの番であること
+   *
+   * 仕様:
+   * - UTGの番でストラドルを表示
+   * - UTGがstraddleした場合、次のプレイヤー（新しいアクター）にもストラドルを表示
+   * - 誰かがstraddle以外のアクション（fold/call/check/bet/raise/allin）を行ったら
+   *   それ以降のプレイヤーにはストラドルを表示しない
+   * - プリフロップのみ
+   */
+  const canStraddle = (() => {
+    if (state.currentStreet !== 'preflop') return false;
+    if (state.phase !== 'action') return false;
+    if (players.length < 4) return false; // UTGが必要
+
+    // preflopアクション履歴を確認
+    const preflopActions = state.streets.preflop;
+
+    // straddle以外のアクションが既に行われていたらストラドル不可
+    const hasNonStraddleAction = preflopActions.some(
+      (a) => a.type !== 'straddle',
+    );
+    if (hasNonStraddleAction) return false;
+
+    // 現在のアクターがストラドル可能な位置かチェック
+    // straddleなしの場合: UTG（playerIds[3]）がアクター
+    // straddleありの場合: straddleアクション後の次のプレイヤーがアクター
+    // → preflopOrder上で最初にアクションする人（idx=0）または
+    //   straddleアクションの連鎖中の次の人
+    const currentAO = activeOrder(state, preflopOrder);
+    const currentActorInOrder = currentAO[state.currentActorIdx];
+
+    if (!currentActorInOrder) return false;
+
+    // ストラドル済みの人数をカウント
+    const straddleCount = preflopActions.filter((a) => a.type === 'straddle').length;
+
+    // straddleなしの場合: UTG（playerIds[3]）がアクターであればストラドル可
+    // straddleありの場合: 直前にstraddleしたプレイヤーの次のプレイヤーがアクターであればストラドル可
+    if (straddleCount === 0) {
+      // UTGがアクターの番のみ
+      return currentActorInOrder === playerIds[3];
+    } else {
+      // ストラドル連鎖中: 現在のアクターがアクティブな先頭（currentActorIdx=0）であればOK
+      // ただし、ストラドルしたプレイヤー（末尾）と同一でないことを確認
+      return state.currentActorIdx === 0;
+    }
+  })();
 
   return {
     state,
@@ -469,6 +609,8 @@ export function useHandFlow(session: SessionConfig) {
     actorPlayer,
     toCall,
     canGoBack: history.length > 0,
+    canStraddle,
+    currentStraddle,
     confirmHoleCards,
     commitAction,
     confirmBoard,

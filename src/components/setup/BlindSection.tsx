@@ -4,24 +4,18 @@ interface Props {
   currency: string;
   blindPresetIdx: number;
   ante: number;
-  straddleOn: boolean;
-  bigBlind: number;
   onCurrencyChange: (val: string) => void;
   onBlindPresetChange: (idx: number) => void;
   onAnteChange: (val: number) => void;
-  onStraddleToggle: (on: boolean) => void;
 }
 
 export default function BlindSection({
   currency,
   blindPresetIdx,
   ante,
-  straddleOn,
-  bigBlind,
   onCurrencyChange,
   onBlindPresetChange,
   onAnteChange,
-  onStraddleToggle,
 }: Props) {
   const currentPresets = BLIND_PRESETS[currency] ?? BLIND_PRESETS['$'];
 
@@ -68,28 +62,6 @@ export default function BlindSection({
         />
       </div>
 
-      <div className="form-row">
-        <label>ストラドル</label>
-        <div className="straddle-row">
-          <button
-            type="button"
-            className={`toggle-pill ${straddleOn ? 'toggle-pill--off' : 'toggle-pill--on'}`}
-            onClick={() => onStraddleToggle(false)}
-          >
-            なし
-          </button>
-          <button
-            type="button"
-            className={`toggle-pill ${straddleOn ? 'toggle-pill--on' : 'toggle-pill--off'}`}
-            onClick={() => onStraddleToggle(true)}
-          >
-            あり
-          </button>
-          {straddleOn && (
-            <span className="straddle-value">= {currency}{bigBlind * 2}</span>
-          )}
-        </div>
-      </div>
     </section>
   );
 }

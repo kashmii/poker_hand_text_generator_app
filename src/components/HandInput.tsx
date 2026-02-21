@@ -41,6 +41,7 @@ export default function HandInput({ session, handNumber, onSave, onCancel, onUpd
     actorPlayer,
     toCall,
     canGoBack,
+    canStraddle,
     confirmHoleCards,
     commitAction,
     confirmBoard,
@@ -437,6 +438,8 @@ export default function HandInput({ session, handNumber, onSave, onCancel, onUpd
             pot={state.pot}
             currency={session.currency}
             canGoBack={canGoBack}
+            canStraddle={canStraddle}
+            straddleAmount={state.currentBet * 2}
             onAction={commitAction}
             onBack={goBack}
           />

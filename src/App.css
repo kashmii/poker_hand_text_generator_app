@@ -994,9 +994,9 @@ input[type='radio'] {
 
 .poker-table-wrap {
   width: 100%;
-  max-width: 480px;
+  max-width: 520px;
   max-height: 100%;
-  aspect-ratio: 2.2 / 2;
+  aspect-ratio: 350 / 270;
   outline: none;
   -webkit-tap-highlight-color: transparent;
 }

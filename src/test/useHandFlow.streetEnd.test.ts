@@ -257,4 +257,79 @@ describe('useHandFlow: ストリート終了ロジック', () => {
 
   });
 
+  // ------------------------------------------------------------------
+  // 【回帰】closingPlayer自身がfoldした場合のストリート終了
+  // ------------------------------------------------------------------
+  describe('closingPlayer自身がfoldした場合のストリート終了', () => {
+
+    it('【回帰】4way: UTGレイズ→BTNコール→SBフォールド→BBフォールドでフロップへ遷移する', () => {
+      // バグ: BB(closingPlayer)がfoldした後、newClosingPlayerIdがBTNに更新されるが
+      // actorId(BB)!==newClosingPlayerId(BTN) のためstreetOverにならずUTGに再度アクションが回っていた
+      // 修正後: closingPlayerFolded=true → lappedEnd && allSquared で判定
+      // preflopOrder = [UTG, BTN, SB, BB]
+      // UTG raise → closing=BB → BTN call → SB fold → BB fold → streetOver(lappedEnd&allSquared)
+      const { result } = renderHook(() => useHandFlow(makeSession4way()));
+      skipHoleCards(result);
+
+      act(() => { result.current.commitAction('raise', 30); }); // UTG raise → closing=BB
+      act(() => { result.current.commitAction('call'); });       // BTN call
+      act(() => { result.current.commitAction('fold'); });       // SB fold
+      act(() => { result.current.commitAction('fold'); });       // BB fold → streetOver!
+
+      expect(result.current.state.phase).toBe('board-input');
+      expect(result.current.state.currentStreet).toBe('flop');
+    });
+
+    it('【回帰】4way: UTGレイズ→BTNコール→BBフォールド→SBフォールドでフロップへ遷移する', () => {
+      // SBとBBのfold順が逆のケース
+      // preflopOrder = [UTG, BTN, SB, BB]
+      // UTG raise → closing=BB → BTN call → BB fold（closingが変わる）→ SB fold → streetOver
+      const { result } = renderHook(() => useHandFlow(makeSession4way()));
+      skipHoleCards(result);
+
+      act(() => { result.current.commitAction('raise', 30); }); // UTG raise → closing=BB
+      act(() => { result.current.commitAction('call'); });       // BTN call
+      // SBがfoldしないでBBがfoldするケースを先に試す（BBはclosing）
+      // preflopOrder=[UTG,BTN,SB,BB] なのでSBが先（idx=2）
+      act(() => { result.current.commitAction('fold'); });       // SB fold (idx=2) → closingはBBのまま
+      act(() => { result.current.commitAction('fold'); });       // BB fold → streetOver!
+
+      expect(result.current.state.phase).toBe('board-input');
+      expect(result.current.state.currentStreet).toBe('flop');
+    });
+
+    it('【回帰】3way: BTNレイズ→SBコール→BBフォールドでフロップへ遷移する', () => {
+      // preflopOrder = [BTN, SB, BB]
+      // BTN raise → closing=BB → SB call → BB fold → streetOver
+      const { result } = renderHook(() => useHandFlow(makeSession3way()));
+      skipHoleCards(result);
+
+      act(() => { result.current.commitAction('raise', 30); }); // BTN raise → closing=BB
+      act(() => { result.current.commitAction('call'); });       // SB call
+      act(() => { result.current.commitAction('fold'); });       // BB fold → streetOver!
+
+      expect(result.current.state.phase).toBe('board-input');
+      expect(result.current.state.currentStreet).toBe('flop');
+    });
+
+    it('【回帰】ポストフロップ: SBベット→BBコール→BTNフォールドでターンへ遷移する', () => {
+      // postflopOrder = [SB, BB, BTN]
+      // SB bet → closing=BTN → BB call → BTN fold(closing自身) → streetOver
+      const { result } = renderHook(() => useHandFlow(makeSession3way()));
+      skipHoleCards(result);
+      act(() => { result.current.commitAction('call'); });   // BTN call
+      act(() => { result.current.commitAction('call'); });   // SB call
+      act(() => { result.current.commitAction('check'); });  // BB check → board-input
+      act(() => { result.current.confirmBoard(); });
+
+      act(() => { result.current.commitAction('bet', 20); }); // SB bet → closing=BTN
+      act(() => { result.current.commitAction('call'); });     // BB call
+      act(() => { result.current.commitAction('fold'); });     // BTN fold → streetOver!
+
+      expect(result.current.state.phase).toBe('board-input');
+      expect(result.current.state.currentStreet).toBe('turn');
+    });
+
+  });
+
 });

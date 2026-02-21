@@ -314,8 +314,17 @@ export function useHandFlow(session: SessionConfig) {
           // call / fold の後:
           // 締め切り人（closingPlayerId）が今アクションした人（actorId）と一致し、
           // かつ全員揃っていれば終了。
+          //
+          // 例外: fold によって締め切り人自身が抜けた場合（newClosingPlayerId が変化）、
+          // actorId と新しい締め切り人は一致しないため、lappedEnd で判定する。
           if (newClosingPlayerId !== null) {
-            streetOver = actorId === newClosingPlayerId && allSquared;
+            const closingPlayerFolded =
+              type === 'fold' && prev.closingPlayerId !== newClosingPlayerId;
+            if (closingPlayerFolded) {
+              streetOver = lappedEnd && allSquared;
+            } else {
+              streetOver = actorId === newClosingPlayerId && allSquared;
+            }
           } else {
             streetOver = lappedEnd && allSquared;
           }

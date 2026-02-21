@@ -242,17 +242,19 @@ describe('useHandFlow: closingPlayerId の更新ロジック', () => {
       expect(result.current.state.closingPlayerId).toBe('bb');
     });
 
-    it('closingPlayer自身がfoldするとclosingPlayerIdが末尾に更新される', () => {
-      // 3way: BTNレイズ → closingPlayerId=BB → BBがフォールド
-      // newOrder=[BTN,SB], 末尾=SB → closingPlayerId='sb'
+    it('closingPlayer自身がfoldするとstreetEndが判定されboard-inputに遷移する', () => {
+      // 3way: BTNレイズ → closingPlayerId=BB → SBコール → BBがフォールド
+      // BBフォールド時: lappedEnd=true, allSquared=true(BTN=30,SB=30) → streetOver=true
+      // → board-input(flop) に遷移し、closingPlayerIdはnull（ストリートリセット）
       const { result } = renderHook(() => useHandFlow(makeSession3way()));
       skipHoleCards(result);
 
       act(() => { result.current.commitAction('raise', 30); }); // BTN raise → closing=BB
       act(() => { result.current.commitAction('call'); });       // SB call
-      act(() => { result.current.commitAction('fold'); });       // BB fold → closing=末尾
-      // newOrder=[BTN,SB], 末尾=SB
-      expect(result.current.state.closingPlayerId).toBe('sb');
+      act(() => { result.current.commitAction('fold'); });       // BB fold → streetOver!
+      expect(result.current.state.phase).toBe('board-input');
+      expect(result.current.state.currentStreet).toBe('flop');
+      expect(result.current.state.closingPlayerId).toBeNull(); // ストリートリセットでnull
     });
 
     it('4way: SBがclosingPlayerでSBがfold → closingPlayerIdが末尾（BB）に更新', () => {
@@ -284,23 +286,20 @@ describe('useHandFlow: closingPlayerId の更新ロジック', () => {
       expect(result.current.state.closingPlayerId).toBe('utg');
     });
 
-    it('ポストフロップ: closingPlayer（BTN）がfold → closingPlayerIdが末尾（BB）に更新', () => {
+    it('ポストフロップ: closingPlayer（BTN）がfold → streetEndが判定されboard-inputに遷移する', () => {
       // postflopOrder = [SB, BB, BTN]
       // SBベット → closing=BTN → BBコール → BTNがフォールド
-      // fold判定: actorId(btn) === newClosingPlayerId(bb?) ではない
-      // BTNフォールド時: newClosingPlayerId は newOrder=[SB,BB]の末尾=BB に更新される
-      // actorId(btn) !== newClosingPlayerId(bb) → streetOver=false → アクション継続
-      // よってSBがまだアクションできる状態
+      // BTNフォールド時: lappedEnd=true(rawIdx=2>=2), allSquared=true(SB=20,BB=20)
+      // → closingPlayerFolded=true → streetOver=true → board-input(turn)
       const { result } = renderHook(() => useHandFlow(makeSession3way()));
       goToFlop3way(result);
 
       act(() => { result.current.commitAction('bet', 20); }); // SB bet → closing=BTN
       act(() => { result.current.commitAction('call'); });     // BB call
-      act(() => { result.current.commitAction('fold'); });     // BTN fold → newClosing=BB
+      act(() => { result.current.commitAction('fold'); });     // BTN fold → streetOver!
 
-      // BTNがfoldすることでclosingはBBに更新、ストリートはまだ続く
-      expect(result.current.state.phase).toBe('action');
-      expect(result.current.state.closingPlayerId).toBe('bb');
+      expect(result.current.state.phase).toBe('board-input');
+      expect(result.current.state.currentStreet).toBe('turn');
     });
 
     it('ポストフロップ: closingPlayer以外がfoldしてもclosingPlayerIdは維持', () => {

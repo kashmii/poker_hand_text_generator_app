@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { SessionConfig, HandData, Action, Card, Rank, Suit } from '../types/poker';
 import { POSITION_LABELS_BY_COUNT } from './setup/constants';
+
 import { useHandFlow } from './hand/useHandFlow';
 import PokerTable from './hand/PokerTable';
 import ActionPanel from './hand/ActionPanel';
@@ -21,6 +22,7 @@ interface Props {
   handNumber: number;
   onSave: (hand: HandData) => void;
   onCancel: () => void;
+  onUpdateSession: (patch: Partial<SessionConfig>) => void;
 }
 
 function generateId() {
@@ -31,7 +33,7 @@ const STREET_LABELS: Record<string, string> = {
   preflop: 'PREFLOP', flop: 'FLOP', turn: 'TURN', river: 'RIVER',
 };
 
-export default function HandInput({ session, handNumber, onSave, onCancel }: Props) {
+export default function HandInput({ session, handNumber, onSave, onCancel, onUpdateSession }: Props) {
   const {
     state,
     actorId,
@@ -239,10 +241,32 @@ export default function HandInput({ session, handNumber, onSave, onCancel }: Pro
 
       {/* 下半分 */}
       <div className="hand-input-v2__bottom">
-        {isHoleCardsPhase ? (
+        {isHoleCardsPhase && !session.heroPosition ? (
+          /* ポジション選択フェーズ */
+          <div className="hero-position-panel">
+            <div className="board-input__title">自分のポジションを選択</div>
+            <div className="hero-position-btns">
+              {posLabels.map((label) => (
+                <button
+                  key={label}
+                  type="button"
+                  className="hero-pos-btn"
+                  onClick={() => {
+                    const newHeroIdx = posLabels.indexOf(label);
+                    const newHeroId = players[newHeroIdx]?.id ?? players[0].id;
+                    onUpdateSession({ heroPosition: label, heroId: newHeroId });
+                  }}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+        ) : isHoleCardsPhase ? (
           /* ホールカード入力 */
           <div className="board-input-wrap">
-            <div className="board-input__title">ヒーローのホールカードを入力</div>
+            <div className="board-input__title">ホールカード</div>
 
             <div className="board-input__slots">
               {([0, 1] as const).map((idx) => {
@@ -310,14 +334,23 @@ export default function HandInput({ session, handNumber, onSave, onCancel }: Pro
               </div>
             </div>
 
-            <button
-              type="button"
-              className="btn-primary btn-full board-input__confirm"
-              onClick={handleHoleConfirm}
-              disabled={!holeAllFilled}
-            >
-              確定してアクション入力へ →
-            </button>
+            <div className="board-input__actions board-input__actions--two">
+              <button
+                type="button"
+                className="btn-secondary board-input__back"
+                onClick={() => onUpdateSession({ heroPosition: '', heroId: players[0]?.id ?? '' })}
+              >
+                ← 戻る
+              </button>
+              <button
+                type="button"
+                className="btn-primary board-input__confirm"
+                onClick={handleHoleConfirm}
+                disabled={!holeAllFilled}
+              >
+                ハンド確定 →
+              </button>
+            </div>
           </div>
 
         ) : isShowdown && currentShowdownPlayer ? (
@@ -359,7 +392,7 @@ export default function HandInput({ session, handNumber, onSave, onCancel }: Pro
                 ← 1手戻る
               </button>
               <button type="button" className="btn-primary" onClick={handleSave}>
-                保存して結果へ →
+                保存 →
               </button>
             </div>
           </div>

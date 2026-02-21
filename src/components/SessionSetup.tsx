@@ -32,7 +32,6 @@ export default function SessionSetup({ onStart }: Props) {
   const [players, setPlayers] = useState(createDefaultPlayers(6));
 
   // ヒーロー情報
-  const [heroPosition, setHeroPosition] = useState('BTN');
   const [heroEffectiveStack, setHeroEffectiveStack] = useState(100);
 
   const handleCurrencyChange = (val: string) => {
@@ -43,16 +42,13 @@ export default function SessionSetup({ onStart }: Props) {
   const handlePlayerCountChange = (count: number) => {
     setPlayerCount(count);
     setPlayers(createDefaultPlayers(count));
-    const newLabels = POSITION_LABELS_BY_COUNT[count];
-    if (!newLabels.includes(heroPosition)) setHeroPosition(newLabels[0]);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const configPlayers = players.map((p, i) => ({ ...p, position: i }));
-    const posLabels = POSITION_LABELS_BY_COUNT[playerCount];
-    const heroIdx = posLabels.indexOf(heroPosition);
-    const heroId = configPlayers[heroIdx]?.id ?? configPlayers[0].id;
+    // heroPositionはhand画面で設定するため、初期値はBTN(index=0)
+    const heroId = configPlayers[0]?.id ?? '';
     onStart({
       smallBlind,
       bigBlind,
@@ -63,7 +59,7 @@ export default function SessionSetup({ onStart }: Props) {
       date,
       players: configPlayers,
       heroId,
-      heroPosition,
+      heroPosition: '',
       heroEffectiveStack,
     });
   };
@@ -115,11 +111,8 @@ export default function SessionSetup({ onStart }: Props) {
         />
 
         <HeroSection
-          playerCount={playerCount}
-          heroPosition={heroPosition}
           heroEffectiveStack={heroEffectiveStack}
           currency={currency}
-          onHeroPositionChange={setHeroPosition}
           onHeroEffectiveStackChange={setHeroEffectiveStack}
         />
 

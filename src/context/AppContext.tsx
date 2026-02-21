@@ -31,6 +31,7 @@ interface AppContextValue {
 
   updateSettings: (patch: Partial<AppSettings>) => void;
   startSession: (config: SessionConfig) => void;
+  updateSession: (patch: Partial<SessionConfig>) => void;
   saveHand: (hand: HandData) => void;
   deleteHand: (id: string) => void;
   incrementHandCounter: () => void;
@@ -55,6 +56,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setHands([]);
     setHandCounter(1);
     setSessionReady(true);
+  }, []);
+
+  const updateSession = useCallback((patch: Partial<SessionConfig>) => {
+    setSession((prev) => ({ ...prev, ...patch }));
   }, []);
 
   const saveHand = useCallback((hand: HandData) => {
@@ -87,6 +92,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         sessionReady,
         updateSettings,
         startSession,
+        updateSession,
         saveHand,
         deleteHand,
         incrementHandCounter,

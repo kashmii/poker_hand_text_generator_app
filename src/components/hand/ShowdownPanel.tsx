@@ -289,7 +289,7 @@ export function WinnerPanel({
         onClick={() => selected && onConfirm(selected)}
         disabled={!selected}
       >
-        確定して保存へ →
+        保存 →
       </button>
     </div>
   );

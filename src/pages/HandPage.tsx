@@ -5,7 +5,7 @@ import HandInput from '../components/HandInput';
 import type { HandData } from '../types/poker';
 
 export default function HandPage() {
-  const { session, sessionReady, hands, handCounter, saveHand, incrementHandCounter } = useApp();
+  const { session, sessionReady, hands, handCounter, saveHand, incrementHandCounter, updateSession } = useApp();
   const navigate = useNavigate();
 
   // セッション未設定ならSetupへ
@@ -35,6 +35,7 @@ export default function HandPage() {
       handNumber={handCounter}
       onSave={handleSave}
       onCancel={handleCancel}
+      onUpdateSession={updateSession}
     />
   );
 }

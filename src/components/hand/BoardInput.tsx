@@ -132,49 +132,47 @@ export default function BoardInput({ street, cards, usedCards = [], onCardChange
         })}
       </div>
 
-      {/* ランク・スーツ選択パネル（active slotがある時だけ表示） */}
-      {activeSlot !== null && (
-        <div className="board-picker-panel">
-          {/* ランク選択 */}
-          <div className="board-picker__ranks">
-            {RANKS.map((r) => {
-              const fullyUsed = isRankFullyUsed(r);
-              return (
-                <button
-                  key={r}
-                  type="button"
-                  className={`rank-btn ${pendingRank === r ? 'rank-btn--active' : ''} ${fullyUsed ? 'rank-btn--used' : ''}`}
-                  onClick={() => handleRank(r)}
-                  disabled={fullyUsed}
-                >
-                  {r}
-                </button>
-              );
-            })}
-          </div>
-
-          {/* スーツ選択（ランク選択後に表示） */}
-          {pendingRank && (
-            <div className="board-picker__suits">
-              {SUITS.map((s) => {
-                const used = isSuitUsed(pendingRank, s.value);
-                return (
-                  <button
-                    key={s.value}
-                    type="button"
-                    className={`suit-btn suit-btn--large ${used ? 'suit-btn--used' : ''}`}
-                    style={{ color: used ? '#4b5563' : s.color }}
-                    onClick={() => handleSuit(s.value)}
-                    disabled={used}
-                  >
-                    {s.label}
-                  </button>
-                );
-              })}
-            </div>
-          )}
+      {/* ランク・スーツ選択パネル（常時DOM、activeSlotなし時は非アクティブ） */}
+      <div className={`board-picker-panel ${activeSlot === null ? 'board-picker-panel--inactive' : ''}`}>
+        {/* ランク選択 */}
+        <div className="board-picker__ranks">
+          {RANKS.map((r) => {
+            const fullyUsed = isRankFullyUsed(r);
+            return (
+              <button
+                key={r}
+                type="button"
+                className={`rank-btn ${pendingRank === r ? 'rank-btn--active' : ''} ${fullyUsed ? 'rank-btn--used' : ''}`}
+                onClick={() => handleRank(r)}
+                disabled={activeSlot === null || fullyUsed}
+                tabIndex={activeSlot === null ? -1 : 0}
+              >
+                {r}
+              </button>
+            );
+          })}
         </div>
-      )}
+
+        {/* スーツ選択（ランク選択後にアクティブ化） */}
+        <div className={`board-picker__suits ${pendingRank ? 'board-picker__suits--active' : ''}`}>
+          {SUITS.map((s) => {
+            const used = pendingRank ? isSuitUsed(pendingRank, s.value) : false;
+            return (
+              <button
+                key={s.value}
+                type="button"
+                className={`suit-btn suit-btn--large ${used ? 'suit-btn--used' : ''}`}
+                style={{ color: used ? '#4b5563' : s.color }}
+                onClick={() => { if (pendingRank) handleSuit(s.value); }}
+                disabled={!pendingRank || used}
+                tabIndex={pendingRank ? 0 : -1}
+              >
+                {s.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
 
       <div className={`board-input__actions ${onBack ? 'board-input__actions--two' : ''}`}>
         {onBack && (

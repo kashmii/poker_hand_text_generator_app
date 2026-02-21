@@ -289,25 +289,25 @@ export default function HandInput({ session, handNumber, onSave, onCancel }: Pro
                   );
                 })}
               </div>
-              {holePendingRank && (
-                <div className="board-picker__suits">
-                  {SUITS.map((s) => {
-                    const used = isHoleSuitUsed(holePendingRank, s.value);
-                    return (
-                      <button
-                        key={s.value}
-                        type="button"
-                        className={`suit-btn suit-btn--large ${used ? 'suit-btn--used' : ''}`}
-                        style={{ color: used ? '#4b5563' : s.color }}
-                        onClick={() => handleHoleSuit(s.value)}
-                        disabled={used}
-                      >
-                        {s.label}
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
+              {/* スーツ選択（ランク選択後にアクティブ化） */}
+              <div className={`board-picker__suits ${holePendingRank ? 'board-picker__suits--active' : ''}`}>
+                {SUITS.map((s) => {
+                  const used = holePendingRank ? isHoleSuitUsed(holePendingRank, s.value) : false;
+                  return (
+                    <button
+                      key={s.value}
+                      type="button"
+                      className={`suit-btn suit-btn--large ${used ? 'suit-btn--used' : ''}`}
+                      style={{ color: used ? '#4b5563' : s.color }}
+                      onClick={() => { if (holePendingRank) handleHoleSuit(s.value); }}
+                      disabled={!holePendingRank || used}
+                      tabIndex={holePendingRank ? 0 : -1}
+                    >
+                      {s.label}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
 
             <button

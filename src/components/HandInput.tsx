@@ -232,7 +232,7 @@ export default function HandInput({ session, handNumber, onSave, onCancel }: Pro
         <PokerTable
           players={players}
           state={state}
-          actorId={state.phase === 'board-input' ? null : actorId}
+          actorId={(state.phase === 'board-input' || state.phase === 'hole-cards') ? null : actorId}
           heroId={session.heroId}
         />
       </div>

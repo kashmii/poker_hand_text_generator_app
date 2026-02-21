@@ -22,7 +22,7 @@ function emptyBoards(): Record<'flop' | 'turn' | 'river', (Card | null)[]> {
  * ただし players 配列は [BTN=0, SB=1, BB=2, UTG=3, ...] の順番。
  * 2人の場合は BTN=SB/BTN, BB の順。
  */
-function buildPreflopOrder(playerIds: string[], straddle: number): string[] {
+export function buildPreflopOrder(playerIds: string[], straddle: number): string[] {
   const count = playerIds.length;
   if (count === 2) {
     // HU: BTN(SB)が先、BBが後
@@ -45,7 +45,7 @@ function buildPreflopOrder(playerIds: string[], straddle: number): string[] {
 /**
  * フロップ以降のアクション順: SB(1)から時計回り。foldedを除く。
  */
-function buildPostflopOrder(playerIds: string[], foldedIds: Set<string>): string[] {
+export function buildPostflopOrder(playerIds: string[], foldedIds: Set<string>): string[] {
   const count = playerIds.length;
   const order: string[] = [];
   // SB(index=1)から始めてBTN(0)で終わる

@@ -138,12 +138,13 @@ export default function PokerTable({ players, state, actorId, heroId }: Props) {
           const pos = positions[i];
           const posLabel = posLabels[i] ?? '';
           const isFolded = state.foldedIds.has(player.id);
+          const isAllIn = state.allInIds.has(player.id);
           const isActor = player.id === actorId;
           const isHero = player.id === heroId;
           const actionText = currentActions[player.id] ?? '';
 
-          const bgColor = isFolded ? '#374151' : isActor ? '#1d4ed8' : '#1e293b';
-          const borderColor = isActor ? '#60a5fa' : isHero ? '#a78bfa' : '#475569';
+          const bgColor = isFolded ? '#374151' : isAllIn ? '#4a1a3a' : isActor ? '#1d4ed8' : '#1e293b';
+          const borderColor = isActor ? '#60a5fa' : isAllIn ? '#f0abfc' : isHero ? '#a78bfa' : '#475569';
 
           return (
             <g key={player.id} transform={`translate(${pos.x}, ${pos.y})`}>
@@ -163,8 +164,10 @@ export default function PokerTable({ players, state, actorId, heroId }: Props) {
 
               {/* アクション表示 */}
               <text x="0" y="0.06" textAnchor="middle"
-                fontSize="0.065" fill={isFolded ? '#6b7280' : '#fbbf24'} fontWeight="bold">
-                {isFolded ? 'FOLD' : actionText}
+                fontSize="0.065"
+                fill={isFolded ? '#6b7280' : isAllIn ? '#f0abfc' : '#fbbf24'}
+                fontWeight="bold">
+                {isFolded ? 'FOLD' : isAllIn ? 'ALL-IN' : actionText}
               </text>
 
               {/* ヒーロー: ホールカード表示（ノードの下） */}

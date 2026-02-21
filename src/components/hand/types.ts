@@ -35,6 +35,8 @@ export interface HandFlowState {
   currentActorIdx: number;
   // fold済みプレイヤーのID集合
   foldedIds: Set<string>;
+  // all-in済みプレイヤーのID集合（アクション順から除外）
+  allInIds: Set<string>;
   // 現在のストリートの最大ベット額（コール額計算用）
   currentBet: number;
   // 各プレイヤーが現在のストリートに投入した額

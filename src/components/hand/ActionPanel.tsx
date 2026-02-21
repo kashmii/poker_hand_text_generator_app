@@ -126,10 +126,17 @@ export default function ActionPanel({
             ))}
           </div>
 
-          {/* 確定・キャンセル */}
+          {/* 確定・ALL-IN・キャンセル */}
           <div className="numpad-actions">
             <button type="button" className="btn-secondary" onClick={handleCancelAmount}>
               キャンセル
+            </button>
+            <button
+              type="button"
+              className="action-btn action-btn--allin numpad-allin"
+              onClick={() => { onAction('allin'); setInputMode('none'); setPendingType(null); setAmountStr(''); }}
+            >
+              ALL-IN
             </button>
             <button
               type="button"
@@ -179,14 +186,6 @@ export default function ActionPanel({
             onClick={() => startAmountInput(currentBet > 0 ? 'raise' : 'bet')}
           >
             {currentBet > 0 ? 'RAISE' : 'BET'}
-          </button>
-
-          <button
-            type="button"
-            className="action-btn action-btn--allin"
-            onClick={() => onAction('allin')}
-          >
-            ALL-IN
           </button>
         </div>
       )}

@@ -1165,8 +1165,16 @@ input[type='radio'] {
 
 .numpad-actions {
   display: grid;
-  grid-template-columns: 1fr 2fr;
+  grid-template-columns: 1fr 1fr 1.5fr;
   gap: 0.5rem;
+}
+
+.numpad-allin {
+  min-height: unset;
+  padding: 0.5rem 0.25rem;
+  font-size: 0.85rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
 }
 
 .numpad-confirm {

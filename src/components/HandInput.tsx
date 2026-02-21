@@ -400,6 +400,7 @@ export default function HandInput({ session, handNumber, onSave, onCancel, onUpd
         ) : isBoardInput ? (
           /* ボード入力 */
           <BoardInput
+            key={boardStreet}
             street={boardStreet}
             cards={state.boards[boardStreet]}
             usedCards={buildBoardUsedCards(boardStreet)}

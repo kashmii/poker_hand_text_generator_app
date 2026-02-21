@@ -44,15 +44,24 @@ export function buildPreflopOrder(playerIds: string[], straddle: number): string
 
 /**
  * フロップ以降のアクション順: SB(1)から時計回り。foldedを除く。
+ * allInIds を渡した場合はオールイン済みも除外する（アクション不要なため）。
  */
-export function buildPostflopOrder(playerIds: string[], foldedIds: Set<string>): string[] {
+export function buildPostflopOrder(
+  playerIds: string[],
+  foldedIds: Set<string>,
+  allInIds?: Set<string>,
+): string[] {
   const count = playerIds.length;
   const order: string[] = [];
   // SB(index=1)から始めてBTN(0)で終わる
   for (let i = 1; i < count; i++) {
-    if (!foldedIds.has(playerIds[i])) order.push(playerIds[i]);
+    if (!foldedIds.has(playerIds[i]) && !(allInIds?.has(playerIds[i]))) {
+      order.push(playerIds[i]);
+    }
   }
-  if (!foldedIds.has(playerIds[0])) order.push(playerIds[0]);
+  if (!foldedIds.has(playerIds[0]) && !(allInIds?.has(playerIds[0]))) {
+    order.push(playerIds[0]);
+  }
   return order;
 }
 
@@ -67,6 +76,7 @@ function buildShowdownQueue(
   playerIds: string[],
   foldedIds: Set<string>,
 ): string[] {
+  // showdown対象はfoldしていない全員（allin含む）
   const active = buildPostflopOrder(playerIds, foldedIds);
   if (active.length <= 1) return active;
 
@@ -122,6 +132,7 @@ export function useHandFlow(session: SessionConfig) {
     boards: emptyBoards(),
     currentActorIdx: 0,
     foldedIds: new Set(),
+    allInIds: new Set(),
     currentBet: straddle > 0 ? straddle : bigBlind,
     contributions: initContributions(),
     pot: smallBlind + bigBlind + straddle,
@@ -138,15 +149,15 @@ export function useHandFlow(session: SessionConfig) {
   const [history, setHistory] = useState<HandFlowState[]>([]);
 
   /**
-   * そのストリートのアクション順（fold済みを除いたアクティブプレイヤーのみ）を返す。
+   * そのストリートのアクション順（fold済み・allin済みを除いたアクティブプレイヤーのみ）を返す。
    * currentActorIdx はこのリスト上のインデックスとして管理する。
    */
   const activeOrder = useCallback(
     (s: HandFlowState): string[] => {
       if (s.currentStreet === 'preflop') {
-        return preflopOrder.filter((id) => !s.foldedIds.has(id));
+        return preflopOrder.filter((id) => !s.foldedIds.has(id) && !s.allInIds.has(id));
       }
-      return buildPostflopOrder(playerIds, s.foldedIds);
+      return buildPostflopOrder(playerIds, s.foldedIds, s.allInIds);
     },
     [preflopOrder, playerIds],
   );
@@ -165,11 +176,13 @@ export function useHandFlow(session: SessionConfig) {
   /** ストリート終了時の次フェーズを返すヘルパー */
   const resolveStreetEnd = (
     newState: HandFlowState,
-    active: string[],
     currentStreet: Street,
   ): HandFlowState => {
-    // アクティブ1人以下 → showdownなし（fold勝ち）→ winner選択へ
-    if (active.length <= 1) {
+    // fold していない（allin含む）アクティブプレイヤー
+    const activePlayers = playerIds.filter((id) => !newState.foldedIds.has(id));
+
+    // アクティブ1人以下 → fold勝ち → winner選択へ
+    if (activePlayers.length <= 1) {
       return {
         ...newState,
         phase: 'winner',
@@ -228,6 +241,7 @@ export function useHandFlow(session: SessionConfig) {
         };
 
         let newFolded = new Set(prev.foldedIds);
+        let newAllIn = new Set(prev.allInIds);
         let newContributions = { ...prev.contributions };
         let newBet = prev.currentBet;
         let newPot = prev.pot;
@@ -238,85 +252,90 @@ export function useHandFlow(session: SessionConfig) {
           const toCall = callAmount(prev, actorId);
           newContributions[actorId] = prev.currentBet;
           newPot += toCall;
-        } else if (type === 'bet' || type === 'raise' || type === 'allin') {
+        } else if (type === 'bet' || type === 'raise') {
           const total = amount ?? prev.currentBet;
           const added = total - (newContributions[actorId] ?? 0);
           newContributions[actorId] = total;
           newBet = total;
           newPot += added;
+        } else if (type === 'allin') {
+          // allin: amount が指定されていればその額、なければプレイヤーのスタック（実効スタック）を使用
+          const playerStack = players.find((p) => p.id === actorId)?.stack ?? 0;
+          const total = amount ?? Math.max(playerStack, prev.currentBet);
+          const added = Math.max(0, total - (newContributions[actorId] ?? 0));
+          newContributions[actorId] = total;
+          if (total > newBet) newBet = total;
+          newPot += added;
+          newAllIn.add(actorId);
         }
         // check: nothing to update
 
-        // アクション後のアクティブプレイヤーリスト
-        const active = playerIds.filter((id) => !newFolded.has(id));
+        // アクション後の（fold除く）アクティブプレイヤーリスト
+        const activePlayers = playerIds.filter((id) => !newFolded.has(id));
 
-        // アクション後の新しいorder（foldした場合はactorIdが除かれる）
+        // アクション後の新しいorder（fold済み・allin済みを除く）
         const newOrder = prev.currentStreet === 'preflop'
-          ? preflopOrder.filter((id) => !newFolded.has(id))
-          : buildPostflopOrder(playerIds, newFolded);
+          ? preflopOrder.filter((id) => !newFolded.has(id) && !newAllIn.has(id))
+          : buildPostflopOrder(playerIds, newFolded, newAllIn);
 
         // ---- 次のインデックス計算 ----
-        // fold: リストが1人縮むので同じ位置インデックスで次の人が来る（% で境界を守る）。
-        // それ以外: +1 して末尾を超えたら 0 に折り返す。
         let newActorIdx: number;
-        if (type === 'fold') {
+        if (type === 'fold' || type === 'allin') {
+          // fold/allin: リストが縮むので同じ位置インデックスで次の人が来る
           newActorIdx = newOrder.length > 0 ? prev.currentActorIdx % newOrder.length : 0;
         } else {
           newActorIdx = (prev.currentActorIdx + 1) % Math.max(newOrder.length, 1);
         }
 
         // ---- closingPlayerId の更新 ----
-        // closingPlayerId は「このプレイヤーがコール/チェック/フォールドした後に
-        // ストリート終了を検討する」基準プレイヤーのID。
-        //
-        // 具体的には「ベッターの1つ前（order上で直前）の人」= bet後に最後にアクションする人。
-        // プリフロップ初期（bet前）: BBが最後なのでBBの1つ前 = SBになってしまうため、
-        // 特別扱いとして preflopOrder の末尾（BB）を直接 closingPlayerId とする。
-        // bet/raise/allin 後: ベッターの order 上1つ前の人を新しい closingPlayerId にする。
         let newClosingPlayerId = prev.closingPlayerId;
         if (type === 'bet' || type === 'raise' || type === 'allin') {
-          // ベッターの newOrder 上1つ前の人が最後にアクションする人
+          // ベッター/オールインの newOrder 上1つ前の人が最後にアクションする人
           const betterIdx = newOrder.indexOf(actorId);
           if (betterIdx >= 0) {
             const prevIdx = (betterIdx - 1 + newOrder.length) % newOrder.length;
             newClosingPlayerId = newOrder[prevIdx] ?? null;
           } else {
+            // allinでnewOrderから除かれた場合: newOrderの末尾が締め切り人
             newClosingPlayerId = newOrder[newOrder.length - 1] ?? null;
           }
-        } else if (type === 'fold' && prev.closingPlayerId !== null) {
-          // fold でリストが縮んだとき、締め切り人がまだ newOrder にいれば維持。
-          // いなければ（= 締め切り人自身が fold）newOrder の末尾に変更。
+        } else if ((type === 'fold' || type === 'allin') && prev.closingPlayerId !== null) {
           if (!newOrder.includes(prev.closingPlayerId)) {
             newClosingPlayerId = newOrder[newOrder.length - 1] ?? null;
           }
         }
 
         // ---- ストリート終了判定 ----
-        //
-        // rawIdx: アクション後の「次に進もうとしているインデックス（折り返し前）」
-        const rawIdx = type === 'fold' ? prev.currentActorIdx : prev.currentActorIdx + 1;
+        const rawIdx = (type === 'fold' || type === 'allin') ? prev.currentActorIdx : prev.currentActorIdx + 1;
         const lappedEnd = rawIdx >= newOrder.length;
-        const allSquared = active.every((id) => newContributions[id] >= newBet);
+        // allSquared: fold/allinしていない全アクティブプレイヤーがベット額に揃っているか
+        const allSquared = activePlayers.every(
+          (id) => newAllIn.has(id) || newContributions[id] >= newBet,
+        );
+
+        // アクション可能なプレイヤー（fold・allin除く）
+        const actionablePlayers = activePlayers.filter((id) => !newAllIn.has(id));
 
         let streetOver: boolean;
-        if (active.length <= 1) {
-          // アクティブが1人以下 → fold勝ち
+        if (activePlayers.length <= 1) {
+          // fold勝ち
+          streetOver = true;
+        } else if (actionablePlayers.length === 0) {
+          // 全員allin（またはallin+fold）→ アクション不要でストリート終了
           streetOver = true;
         } else if (newBet === 0) {
           // ベットなし（全員checkのみ）: 末尾を一周通過したら終了
           streetOver = lappedEnd;
-        } else if (type === 'bet' || type === 'raise' || type === 'allin') {
-          // bet/raise/allin 直後: ベッターが末尾 かつ 全員揃っていれば即終了
+        } else if (type === 'bet' || type === 'raise') {
+          // bet/raise 直後: ベッターが末尾 かつ 全員揃っていれば即終了
           const actorNewIdx = newOrder.indexOf(actorId);
           const afterBetRaw = actorNewIdx >= 0 ? actorNewIdx + 1 : newOrder.length;
           streetOver = afterBetRaw >= newOrder.length && allSquared;
+        } else if (type === 'allin') {
+          // allin直後: newOrder（まだアクション必要な人のリスト）が空になったら終了
+          streetOver = newOrder.length === 0;
         } else {
           // call / fold の後:
-          // 締め切り人（closingPlayerId）が今アクションした人（actorId）と一致し、
-          // かつ全員揃っていれば終了。
-          //
-          // 例外: fold によって締め切り人自身が抜けた場合（newClosingPlayerId が変化）、
-          // actorId と新しい締め切り人は一致しないため、lappedEnd で判定する。
           if (newClosingPlayerId !== null) {
             const closingPlayerFolded =
               type === 'fold' && prev.closingPlayerId !== newClosingPlayerId;
@@ -334,6 +353,7 @@ export function useHandFlow(session: SessionConfig) {
           ...prev,
           streets: newStreets,
           foldedIds: newFolded,
+          allInIds: newAllIn,
           contributions: newContributions,
           currentBet: newBet,
           pot: newPot,
@@ -343,7 +363,7 @@ export function useHandFlow(session: SessionConfig) {
         };
 
         if (streetOver) {
-          return resolveStreetEnd(newState, active, prev.currentStreet);
+          return resolveStreetEnd(newState, prev.currentStreet);
         }
 
         return newState;
@@ -363,11 +383,21 @@ export function useHandFlow(session: SessionConfig) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state]);
 
-  /** ボードカード確定してアクションフェーズへ */
+  /** ボードカード確定してアクションフェーズへ（アクション可能者がいない場合は次のボード入力へ） */
   const confirmBoard = useCallback(() => {
     setHistory((h) => [...h, state]);
-    setState((prev) => ({ ...prev, phase: 'action' }));
-  }, [state]);
+    setState((prev) => {
+      const actionable = playerIds.filter(
+        (id) => !prev.foldedIds.has(id) && !prev.allInIds.has(id),
+      );
+      if (actionable.length <= 1) {
+        // アクション不要 → 即次ストリートへ
+        return resolveStreetEnd({ ...prev, phase: 'action' }, prev.currentStreet);
+      }
+      return { ...prev, phase: 'action' };
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state, playerIds]);
 
   /** ボードカードを更新 */
   const updateBoard = useCallback(

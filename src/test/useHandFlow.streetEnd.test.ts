@@ -258,6 +258,103 @@ describe('useHandFlow: ストリート終了ロジック', () => {
   });
 
   // ------------------------------------------------------------------
+  // オールイン関連
+  // ------------------------------------------------------------------
+  describe('オールイン', () => {
+
+    /** 6人テーブル: [BTN=0, SB=1, BB=2, UTG=3, HJ=4, CO=5] */
+    function makeSession6way(): SessionConfig {
+      return {
+        ...makeSession3way(),
+        players: [
+          { id: 'btn', name: 'BTN', stack: 1000, position: 0 },
+          { id: 'sb',  name: 'SB',  stack: 1000, position: 1 },
+          { id: 'bb',  name: 'BB',  stack: 1000, position: 2 },
+          { id: 'utg', name: 'UTG', stack: 1000, position: 3 },
+          { id: 'hj',  name: 'HJ',  stack: 1000, position: 4 },
+          { id: 'co',  name: 'CO',  stack: 1000, position: 5 },
+        ],
+      };
+    }
+
+    it('【回帰】6way: UTGオールイン→HJ/CO/BTN/SBフォールド後にBBがアクションできる', () => {
+      // preflopOrder = [UTG, HJ, CO, BTN, SB, BB]
+      // UTGがオールイン → HJ/CO/BTN/SBがフォールド → BBはまだアクションが必要
+      // バグ: BBのアクション前にboard-inputへ遷移してしまっていた
+      const { result } = renderHook(() => useHandFlow(makeSession6way()));
+      skipHoleCards(result);
+
+      act(() => { result.current.commitAction('allin'); });  // UTG all-in
+      act(() => { result.current.commitAction('fold'); });   // HJ fold
+      act(() => { result.current.commitAction('fold'); });   // CO fold
+      act(() => { result.current.commitAction('fold'); });   // BTN fold
+      act(() => { result.current.commitAction('fold'); });   // SB fold
+
+      // BBはまだアクションが必要 → phaseは 'action' のまま
+      expect(result.current.state.phase).toBe('action');
+      expect(result.current.actorId).toBe('bb');
+    });
+
+    it('【回帰】6way: UTGオールイン→HJ/CO/BTN/SBフォールド→BBコールでフロップへ遷移', () => {
+      const { result } = renderHook(() => useHandFlow(makeSession6way()));
+      skipHoleCards(result);
+
+      act(() => { result.current.commitAction('allin'); });  // UTG all-in
+      act(() => { result.current.commitAction('fold'); });   // HJ fold
+      act(() => { result.current.commitAction('fold'); });   // CO fold
+      act(() => { result.current.commitAction('fold'); });   // BTN fold
+      act(() => { result.current.commitAction('fold'); });   // SB fold
+      act(() => { result.current.commitAction('call'); });   // BB call → street over
+
+      expect(result.current.state.phase).toBe('board-input');
+      expect(result.current.state.currentStreet).toBe('flop');
+    });
+
+    it('【回帰】6way: UTGオールイン→HJ/CO/BTN/SBフォールド→BBフォールドでwinner遷移', () => {
+      const { result } = renderHook(() => useHandFlow(makeSession6way()));
+      skipHoleCards(result);
+
+      act(() => { result.current.commitAction('allin'); });  // UTG all-in
+      act(() => { result.current.commitAction('fold'); });   // HJ fold
+      act(() => { result.current.commitAction('fold'); });   // CO fold
+      act(() => { result.current.commitAction('fold'); });   // BTN fold
+      act(() => { result.current.commitAction('fold'); });   // SB fold
+      act(() => { result.current.commitAction('fold'); });   // BB fold → 1人残 → winner
+
+      expect(result.current.state.phase).toBe('winner');
+    });
+
+    it('プリフロップ: 2プレイヤーがオールイン状態でフロップ以降アクション不要', () => {
+      // 3way: UTG allin → BTN(SB) call → BB call → 全員EquityFixed → no action on flop
+      // ただし3wayなのでBTN→SBで順番変わる
+      // 4way: UTG allin → BTN allin → SB fold → BB call → 全員in or fold
+      const { result } = renderHook(() => useHandFlow(makeSession4way()));
+      skipHoleCards(result);
+
+      // preflopOrder = [UTG, BTN, SB, BB]
+      act(() => { result.current.commitAction('allin'); });  // UTG all-in
+      act(() => { result.current.commitAction('allin'); });  // BTN all-in
+      act(() => { result.current.commitAction('fold'); });   // SB fold
+      act(() => { result.current.commitAction('call'); });   // BB call → 終了
+
+      // フロップカード入力へ
+      expect(result.current.state.phase).toBe('board-input');
+      expect(result.current.state.currentStreet).toBe('flop');
+
+      // フロップカード確定後、actionableが0 or 1なのでアクションフェーズをスキップ
+      act(() => { result.current.confirmBoard(); }); // flop → turn board-input
+      expect(result.current.state.currentStreet).toBe('turn');
+
+      act(() => { result.current.confirmBoard(); }); // turn → river board-input
+      expect(result.current.state.currentStreet).toBe('river');
+
+      act(() => { result.current.confirmBoard(); }); // river → showdown or winner
+      expect(['showdown', 'winner'].includes(result.current.state.phase)).toBe(true);
+    });
+
+  });
+
+  // ------------------------------------------------------------------
   // 【回帰】closingPlayer自身がfoldした場合のストリート終了
   // ------------------------------------------------------------------
   describe('closingPlayer自身がfoldした場合のストリート終了', () => {
@@ -330,6 +427,61 @@ describe('useHandFlow: ストリート終了ロジック', () => {
       expect(result.current.state.currentStreet).toBe('turn');
     });
 
+  });
+
+});
+
+// ========== オールイン後のtoCall（callAmount）検証 ==========
+
+describe('オールイン後のコール額検証', () => {
+
+  /** 6人テーブル: [BTN=0, SB=1, BB=2, UTG=3, HJ=4, CO=5] */
+  function makeSession6way(): SessionConfig {
+    return {
+      players: [
+        { id: 'btn', name: 'BTN', stack: 1000, position: 0 },
+        { id: 'sb',  name: 'SB',  stack: 1000, position: 1 },
+        { id: 'bb',  name: 'BB',  stack: 1000, position: 2 },
+        { id: 'utg', name: 'UTG', stack: 1000, position: 3 },
+        { id: 'hj',  name: 'HJ',  stack: 1000, position: 4 },
+        { id: 'co',  name: 'CO',  stack: 1000, position: 5 },
+      ],
+      heroId: 'btn',
+      heroPosition: 'BTN',
+      heroEffectiveStack: 100,
+      smallBlind: 5,
+      bigBlind: 10,
+      ante: 0,
+      straddle: 0,
+      currency: '$',
+      venueName: '',
+      date: '2024-01-01',
+    };
+  }
+
+  it('【回帰】UTGがオールイン（amount未指定）後にBBのtoCallが正しくcall額になる', () => {
+    // UTGがオールイン（amount未指定 → スタック1000を使用）
+    // BBのcontributions=10（BB投資）なので toCall = 1000 - 10 = 990
+    // checkにはならないはず
+    const { result } = renderHook(() => useHandFlow(makeSession6way()));
+    act(() => {
+      result.current.confirmHoleCards({ rank: 'A', suit: 'h' }, { rank: 'K', suit: 'h' });
+    });
+
+    act(() => { result.current.commitAction('allin'); });  // UTG all-in（amount未指定）
+    act(() => { result.current.commitAction('fold'); });   // HJ fold
+    act(() => { result.current.commitAction('fold'); });   // CO fold
+    act(() => { result.current.commitAction('fold'); });   // BTN fold
+    act(() => { result.current.commitAction('fold'); });   // SB fold
+
+    // BBのアクターになっているはず
+    expect(result.current.actorId).toBe('bb');
+    // toCallは正のはず（checkではなくcall）
+    expect(result.current.toCall).toBeGreaterThan(0);
+    // currentBet = UTGのスタック = 1000
+    expect(result.current.state.currentBet).toBe(1000);
+    // toCall = 1000 - 10(BB投資) = 990
+    expect(result.current.toCall).toBe(990);
   });
 
 });

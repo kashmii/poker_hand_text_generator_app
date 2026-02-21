@@ -7,22 +7,27 @@ import type { HandData, SessionConfig } from '../types/poker';
 /** 3人テーブルのセッション設定（BTN=hero, SB, BB） */
 const session3way: SessionConfig = {
   players: [
-    { id: 'btn', name: 'Hero', stack: 1000, holeCards: [{ rank: 'A', suit: 'h' }, { rank: 'K', suit: 'h' }] },
-    { id: 'sb',  name: 'SB_player', stack: 1000 },
-    { id: 'bb',  name: 'BB_player', stack: 1000 },
+    { id: 'btn', name: 'Hero', stack: 1000, position: 0, holeCards: [{ rank: 'A', suit: 'h' }, { rank: 'K', suit: 'h' }] },
+    { id: 'sb',  name: 'SB_player', stack: 1000, position: 1 },
+    { id: 'bb',  name: 'BB_player', stack: 1000, position: 2 },
   ],
   heroId: 'btn',
+  heroPosition: 'BTN',
+  heroEffectiveStack: 100,
   smallBlind: 5,
   bigBlind: 10,
   ante: 0,
   straddle: 0,
   currency: '$',
-  outputLanguage: 'en',
+  venueName: '',
+  date: '2024-01-01',
 };
 
 /** プリフロップのみ（SBフォールド、BBフォールド）のハンドデータ */
 const handPreflopOnly: HandData = {
+  id: 'hand-1',
   handNumber: 1,
+  dealerPosition: 0,
   pot: 15,
   streets: {
     preflop: {
@@ -39,7 +44,9 @@ const handPreflopOnly: HandData = {
 
 /** フロップまで進んだハンドデータ */
 const handWithFlop: HandData = {
+  id: 'hand-2',
   handNumber: 2,
+  dealerPosition: 0,
   pot: 60,
   streets: {
     preflop: {
@@ -68,7 +75,9 @@ const handWithFlop: HandData = {
 
 /** ショーダウンありのハンドデータ */
 const handWithShowdown: HandData = {
+  id: 'hand-3',
   handNumber: 3,
+  dealerPosition: 0,
   pot: 200,
   streets: {
     preflop: {

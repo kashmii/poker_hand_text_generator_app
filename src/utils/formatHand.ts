@@ -3,21 +3,20 @@ import type {
   SessionConfig,
   Action,
   Card,
-  Street,
   ShowdownEntry,
   OutputLanguage,
 } from '../types/poker';
 
 // ========== カード表示 ==========
 const SUIT_SYMBOLS: Record<string, string> = {
-  h: 'h', d: 'd', c: 'c', s: 's',
+  h: '♥', d: '♦', c: '♣', s: '♠',
 };
 
 function formatCard(card: Card): string {
-  return `${card.rank}${SUIT_SYMBOLS[card.suit]}`;
+  return `${card.rank}${SUIT_SYMBOLS[card.suit] ?? card.suit}`;
 }
 
-function formatCards(cards: Card[]): string {
+function formatCardsSpaced(cards: Card[]): string {
   return cards.map(formatCard).join(' ');
 }
 
@@ -40,40 +39,28 @@ function getPositionLabel(playerIdx: number, totalPlayers: number): string {
 // ========== アクション文字列 ==========
 function formatAction(
   action: Action,
-  playerName: string,
+  posLabel: string,
   currency: string,
   _lang: OutputLanguage
 ): string {
   const c = currency;
   switch (action.type) {
     case 'fold':
-      return `${playerName}: folds`;
+      return `${posLabel} folds`;
     case 'check':
-      return `${playerName}: checks`;
+      return `${posLabel} checks`;
     case 'call':
-      return `${playerName}: calls ${c}${action.amount ?? ''}`;
+      return `${posLabel} calls ${c}${(action.amount ?? 0).toLocaleString()}`;
     case 'bet':
-      return `${playerName}: bets ${c}${action.amount ?? ''}`;
+      return `${posLabel} bets ${c}${(action.amount ?? 0).toLocaleString()}`;
     case 'raise':
-      return `${playerName}: raises to ${c}${action.amount ?? ''}`;
+      return `${posLabel} raises ${c}${(action.amount ?? 0).toLocaleString()}`;
     case 'allin':
-      return `${playerName}: raises to ${c}${action.amount ?? ''} and is all-in`;
+      return `${posLabel} raises ${c}${(action.amount ?? 0).toLocaleString()} and is all-in`;
+    case 'straddle':
+      return `${posLabel} straddles ${c}${(action.amount ?? 0).toLocaleString()}`;
     default:
       return '';
-  }
-}
-
-// ========== ストリートヘッダー ==========
-function streetHeader(street: Street, board: Card[] | undefined): string {
-  switch (street) {
-    case 'preflop':
-      return '*** HOLE CARDS ***';
-    case 'flop':
-      return `*** FLOP *** [${board ? formatCards(board) : ''}]`;
-    case 'turn':
-      return `*** TURN *** [${board ? formatCards(board) : ''}]`;
-    case 'river':
-      return `*** RIVER *** [${board ? formatCards(board) : ''}]`;
   }
 }
 
@@ -87,112 +74,112 @@ export function generateHandText(
   const totalPlayers = players.length;
   const c = currency;
 
+  // playerIdからポジションラベルへのマップ
+  const posLabelMap: Record<string, string> = {};
+  players.forEach((p, i) => {
+    posLabelMap[p.id] = getPositionLabel(i, totalPlayers);
+  });
+
   const lines: string[] = [];
 
   // --- ヘッダー ---
-  lines.push(`Hand #${hand.handNumber} - ${c}${smallBlind}/${c}${bigBlind} No Limit Hold'em`);
+  lines.push(`${c}${smallBlind}/${bigBlind} (Live)`);
+  lines.push(`Hand n°${hand.handNumber} - ${hand.id ? session.date : session.date}`);
+  lines.push('');
+  lines.push(`${c}${smallBlind}/${bigBlind} - ${totalPlayers} players`);
+  lines.push('');
 
-  // --- シート情報 ---
-  lines.push(`Table '${c}${smallBlind}/${c}${bigBlind}' ${totalPlayers}-handed`);
-  players.forEach((p, i) => {
-    const posLabel = getPositionLabel(i, totalPlayers);
-    const heroMark = p.id === heroId ? ' [hero]' : '';
-    lines.push(`Seat ${i + 1}: ${p.name} (${c}${p.stack} in chips)${heroMark} [${posLabel}]`);
-  });
+  // --- Setup: heroのホールカードのみ表示 ---
+  const hero = players.find((p) => p.id === heroId);
+  if (hero?.holeCards) {
+    const posLabel = posLabelMap[hero.id] ?? '';
+    lines.push('Setup');
+    lines.push(`${posLabel} [${formatCardsSpaced(hero.holeCards)}]`);
+    lines.push('');
+  }
 
-  // --- ブラインド投稿 ---
-  // BTN=index0, SB=index1, BB=index2 の想定
+  // --- プリフロップ ---
+  // ポットサイズ: プリフロップ開始時は 0（ブラインドはポスト行で表現）
+  lines.push(`Preflop (Pot size: 0)`);
+  // SB/BBのポスト
   const sbPlayer = players[1] ?? players[0];
   const bbPlayer = players[2] ?? players[1];
   if (ante > 0) {
-    players.forEach((p) => lines.push(`${p.name}: posts the ante ${c}${ante}`));
+    players.forEach((p) => {
+      const posLabel = posLabelMap[p.id] ?? '';
+      lines.push(`${posLabel} posts ante ${c}${ante.toLocaleString()}`);
+    });
   }
-  lines.push(`${sbPlayer.name}: posts small blind ${c}${smallBlind}`);
-  lines.push(`${bbPlayer.name}: posts big blind ${c}${bigBlind}`);
-
-  // --- ホールカード ---
-  lines.push('');
-  lines.push(streetHeader('preflop', undefined));
-  const hero = players.find((p) => p.id === heroId);
-  if (hero?.holeCards) {
-    lines.push(`Dealt to ${hero.name} [${formatCards(hero.holeCards)}]`);
-  }
+  lines.push(`${posLabelMap[sbPlayer.id] ?? 'SB'} posts small blind ${c}${smallBlind.toLocaleString()}`);
+  lines.push(`${posLabelMap[bbPlayer.id] ?? 'BB'} posts big blind ${c}${bigBlind.toLocaleString()}`);
   hand.streets.preflop.actions.forEach((a) => {
-    const p = players.find((pl) => pl.id === a.playerId);
-    if (p) lines.push(formatAction(a, p.name, c, lang));
+    const posLabel = posLabelMap[a.playerId] ?? '';
+    const line = formatAction(a, posLabel, c, lang);
+    if (line) lines.push(line);
   });
 
   // --- フロップ ---
   if (hand.streets.flop) {
+    // フロップ開始時のポット = プリフロップ終了時のポット
+    // pot はハンド全体の最終ポットなのでここでは計算できないが、
+    // シンプルに各ストリート分を積算する
+    const preflopPot = computeStreetPot(hand, 'preflop', smallBlind, bigBlind, ante);
+    const boardStr = hand.streets.flop.board
+      ? `[${formatCardsSpaced(hand.streets.flop.board)}]`
+      : '';
     lines.push('');
-    lines.push(streetHeader('flop', hand.streets.flop.board));
+    lines.push(`Flop (Pot size: ${preflopPot.toLocaleString()}) ${boardStr}`);
     hand.streets.flop.actions.forEach((a) => {
-      const p = players.find((pl) => pl.id === a.playerId);
-      if (p) lines.push(formatAction(a, p.name, c, lang));
+      const posLabel = posLabelMap[a.playerId] ?? '';
+      const line = formatAction(a, posLabel, c, lang);
+      if (line) lines.push(line);
     });
   }
 
   // --- ターン ---
   if (hand.streets.turn) {
-    const prevBoard = hand.streets.flop?.board ?? [];
-    const turnBoard = [...prevBoard, ...(hand.streets.turn.board ?? [])];
+    const turnPot = computeStreetPot(hand, 'turn', smallBlind, bigBlind, ante);
+    const boardStr = hand.streets.turn.board
+      ? `[${formatCardsSpaced(hand.streets.turn.board)}]`
+      : '';
     lines.push('');
-    lines.push(streetHeader('turn', turnBoard));
+    lines.push(`Turn (Pot size: ${turnPot.toLocaleString()}) ${boardStr}`);
     hand.streets.turn.actions.forEach((a) => {
-      const p = players.find((pl) => pl.id === a.playerId);
-      if (p) lines.push(formatAction(a, p.name, c, lang));
+      const posLabel = posLabelMap[a.playerId] ?? '';
+      const line = formatAction(a, posLabel, c, lang);
+      if (line) lines.push(line);
     });
   }
 
   // --- リバー ---
   if (hand.streets.river) {
-    const prevBoard = [
-      ...(hand.streets.flop?.board ?? []),
-      ...(hand.streets.turn?.board ?? []),
-      ...(hand.streets.river.board ?? []),
-    ];
+    const riverPot = computeStreetPot(hand, 'river', smallBlind, bigBlind, ante);
+    const boardStr = hand.streets.river.board
+      ? `[${formatCardsSpaced(hand.streets.river.board)}]`
+      : '';
     lines.push('');
-    lines.push(streetHeader('river', prevBoard));
+    lines.push(`River (Pot size: ${riverPot.toLocaleString()}) ${boardStr}`);
     hand.streets.river.actions.forEach((a) => {
-      const p = players.find((pl) => pl.id === a.playerId);
-      if (p) lines.push(formatAction(a, p.name, c, lang));
-    });
-  }
-
-  // --- ショーダウン ---
-  if (hand.showdown && hand.showdown.length > 0) {
-    lines.push('');
-    lines.push('*** SHOW DOWN ***');
-    hand.showdown.forEach((entry: ShowdownEntry) => {
-      const p = players.find((pl) => pl.id === entry.playerId);
-      if (p) {
-        const desc = entry.handDescription ? ` (${entry.handDescription})` : '';
-        lines.push(`${p.name}: shows [${formatCards(entry.cards)}]${desc}`);
-      }
+      const posLabel = posLabelMap[a.playerId] ?? '';
+      const line = formatAction(a, posLabel, c, lang);
+      if (line) lines.push(line);
     });
   }
 
   // --- サマリー ---
   lines.push('');
-  lines.push('*** SUMMARY ***');
-  lines.push(`Total pot ${c}${hand.pot}`);
-
-  // ボード全体
-  const allBoard = [
-    ...(hand.streets.flop?.board ?? []),
-    ...(hand.streets.turn?.board ?? []),
-    ...(hand.streets.river?.board ?? []),
-  ];
-  if (allBoard.length > 0) {
-    lines.push(`Board [${formatCards(allBoard)}]`);
+  lines.push(`Summary (Pot size: ${hand.pot.toLocaleString()})`);
+  // ショーダウンのshows行
+  if (hand.showdown && hand.showdown.length > 0) {
+    hand.showdown.forEach((entry: ShowdownEntry) => {
+      const posLabel = posLabelMap[entry.playerId] ?? '';
+      lines.push(`${posLabel} shows [${formatCardsSpaced(entry.cards)}]`);
+    });
   }
-
+  // ウィナー
   hand.winners.forEach((w) => {
-    const p = players.find((pl) => pl.id === w.playerId);
-    if (p) {
-      const desc = w.description ? ` with ${w.description}` : '';
-      lines.push(`${p.name} collected ${c}${w.amount} from pot${desc}`);
-    }
+    const posLabel = posLabelMap[w.playerId] ?? '';
+    lines.push(`${posLabel} wins ${c}${w.amount.toLocaleString()}`);
   });
 
   if (hand.notes) {
@@ -203,4 +190,53 @@ export function generateHandText(
   lines.push('');
 
   return lines.join('\n');
+}
+
+/**
+ * 指定ストリート開始時点のポットサイズを計算する。
+ * SB/BB/anteの強制投資 + 各ストリートのベット合計を積算。
+ */
+function computeStreetPot(
+  hand: HandData,
+  upToStreet: 'preflop' | 'flop' | 'turn' | 'river',
+  smallBlind: number,
+  bigBlind: number,
+  ante: number,
+): number {
+  let pot = smallBlind + bigBlind + ante;
+
+  // straddleはpreflopのアクションに含まれているので自動的に加算される
+  const streetOrder = ['preflop', 'flop', 'turn', 'river'] as const;
+  const upToIdx = streetOrder.indexOf(upToStreet);
+
+  // upToStreet の1つ前のストリートまでの投資を集計
+  const contributions: Record<string, number> = {};
+
+  for (let si = 0; si < upToIdx; si++) {
+    const street = streetOrder[si];
+    const actions = street === 'preflop'
+      ? hand.streets.preflop.actions
+      : hand.streets[street]?.actions ?? [];
+
+    // ストリートごとにcontributionsをリセット（ポストフロップ）
+    if (si > 0) {
+      Object.keys(contributions).forEach((k) => { contributions[k] = 0; });
+    }
+
+    for (const a of actions) {
+      if (a.type === 'fold' || a.type === 'check') continue;
+      if (a.type === 'call') {
+        const added = a.amount ?? 0;
+        pot += added;
+      } else if (a.type === 'bet' || a.type === 'raise' || a.type === 'allin' || a.type === 'straddle') {
+        const total = a.amount ?? 0;
+        const prev = contributions[a.playerId] ?? 0;
+        const added = total - prev;
+        if (added > 0) pot += added;
+        contributions[a.playerId] = total;
+      }
+    }
+  }
+
+  return pot;
 }

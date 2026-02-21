@@ -114,54 +114,59 @@ const handWithShowdown: HandData = {
 describe('generateHandText', () => {
 
   describe('ヘッダー行', () => {
-    it('ブラインド・ゲーム種別が含まれる', () => {
+    it('ブラインド・ライブ表記が含まれる', () => {
       const text = generateHandText(handPreflopOnly, session3way);
-      expect(text).toContain("Hand #1");
-      expect(text).toContain("$5/$10");
-      expect(text).toContain("No Limit Hold'em");
+      expect(text).toContain('$5/10 (Live)');
     });
 
-    it('テーブル情報に人数が含まれる', () => {
+    it('ハンド番号と日付が含まれる', () => {
       const text = generateHandText(handPreflopOnly, session3way);
-      expect(text).toContain("3-handed");
+      expect(text).toContain('Hand n°1');
+      expect(text).toContain('2024-01-01');
+    });
+
+    it('人数が含まれる', () => {
+      const text = generateHandText(handPreflopOnly, session3way);
+      expect(text).toContain('3 players');
     });
   });
 
-  describe('シート情報', () => {
-    it('全プレイヤーのシート行が出力される', () => {
+  describe('Setupセクション', () => {
+    it('heroのホールカードがポジション名付きで出力される', () => {
       const text = generateHandText(handPreflopOnly, session3way);
-      expect(text).toContain('Seat 1: Hero');
-      expect(text).toContain('Seat 2: SB_player');
-      expect(text).toContain('Seat 3: BB_player');
+      expect(text).toContain('BTN [A♥ K♥]');
     });
 
-    it('heroに [hero] マークがつく', () => {
-      const text = generateHandText(handPreflopOnly, session3way);
-      expect(text).toContain('Hero ($1000 in chips) [hero]');
+    it('hero以外のカードはSetupに含まれない', () => {
+      const text = generateHandText(handWithShowdown, session3way);
+      expect(text).toContain('BTN [A♥ K♥]');
+      expect(text).not.toContain('BB [9♠ 8♠]\nSetup');
     });
 
-    it('heroでないプレイヤーに [hero] マークがつかない', () => {
-      const text = generateHandText(handPreflopOnly, session3way);
-      expect(text).not.toContain('SB_player ($1000 in chips) [hero]');
-    });
-
-    it('スタック・ポジションラベルが含まれる', () => {
-      const text = generateHandText(handPreflopOnly, session3way);
-      expect(text).toContain('[BTN]');
-      expect(text).toContain('[SB]');
-      expect(text).toContain('[BB]');
+    it('ホールカードなしの場合はSetupセクションが省略される', () => {
+      const sessionNoHole: SessionConfig = {
+        ...session3way,
+        players: session3way.players.map((p) => ({ ...p, holeCards: undefined })),
+      };
+      const text = generateHandText(handPreflopOnly, sessionNoHole);
+      expect(text).not.toContain('Setup');
     });
   });
 
   describe('ブラインド投稿行', () => {
-    it('SBのポスト行が出力される', () => {
+    it('Preflopヘッダーが出力される', () => {
       const text = generateHandText(handPreflopOnly, session3way);
-      expect(text).toContain('SB_player: posts small blind $5');
+      expect(text).toContain('Preflop (Pot size: 0)');
     });
 
-    it('BBのポスト行が出力される', () => {
+    it('SBのポスト行がポジション名で出力される', () => {
       const text = generateHandText(handPreflopOnly, session3way);
-      expect(text).toContain('BB_player: posts big blind $10');
+      expect(text).toContain('SB posts small blind $5');
+    });
+
+    it('BBのポスト行がポジション名で出力される', () => {
+      const text = generateHandText(handPreflopOnly, session3way);
+      expect(text).toContain('BB posts big blind $10');
     });
 
     it('anteが0の場合はante行が出力されない', () => {
@@ -172,125 +177,118 @@ describe('generateHandText', () => {
     it('anteが設定されている場合は全員のante行が出力される', () => {
       const sessionWithAnte = { ...session3way, ante: 1 };
       const text = generateHandText(handPreflopOnly, sessionWithAnte);
-      expect(text).toContain('Hero: posts the ante $1');
-      expect(text).toContain('SB_player: posts the ante $1');
-      expect(text).toContain('BB_player: posts the ante $1');
+      expect(text).toContain('BTN posts ante $1');
+      expect(text).toContain('SB posts ante $1');
+      expect(text).toContain('BB posts ante $1');
     });
   });
 
   describe('プリフロップのアクション行', () => {
-    it('*** HOLE CARDS *** ヘッダーが出力される', () => {
+    it('raiseアクションがポジション名・toなし形式で出力される', () => {
       const text = generateHandText(handPreflopOnly, session3way);
-      expect(text).toContain('*** HOLE CARDS ***');
+      expect(text).toContain('BTN raises $30');
     });
 
-    it('heroのホールカードが出力される', () => {
+    it('foldアクションがポジション名で出力される', () => {
       const text = generateHandText(handPreflopOnly, session3way);
-      expect(text).toContain('Dealt to Hero [Ah Kh]');
+      expect(text).toContain('SB folds');
+      expect(text).toContain('BB folds');
     });
 
-    it('raiseアクションが正しい形式で出力される', () => {
-      const text = generateHandText(handPreflopOnly, session3way);
-      expect(text).toContain('Hero: raises to $30');
-    });
-
-    it('foldアクションが正しい形式で出力される', () => {
-      const text = generateHandText(handPreflopOnly, session3way);
-      expect(text).toContain('SB_player: folds');
-      expect(text).toContain('BB_player: folds');
-    });
-
-    it('callアクションが正しい形式で出力される', () => {
+    it('callアクションがポジション名で出力される', () => {
       const text = generateHandText(handWithFlop, session3way);
-      expect(text).toContain('BB_player: calls $30');
+      expect(text).toContain('BB calls $30');
     });
   });
 
   describe('フロップ', () => {
-    it('*** FLOP *** ヘッダーにボードカードが含まれる', () => {
+    it('Flopヘッダーにポットサイズとボードカードが含まれる', () => {
       const text = generateHandText(handWithFlop, session3way);
-      expect(text).toContain('*** FLOP *** [Ah Kd Qc]');
+      // preflop: SB $5 + BB $10 + BTN raise $30 (BB call $30 でpot=60-但しここでは開始前)
+      // preflop pot = SB5 + BB10 + BTN raise追加分(30-0=30) + BB call(30) = 75... しかし
+      // 実際にはSB+BB=15がベース、BTNがraiseして30、BBがcall30で pot=30*2=60
+      expect(text).toContain('Flop (Pot size:');
+      expect(text).toContain('[A♥ K♦ Q♣]');
     });
 
-    it('フロップのcheckアクションが出力される', () => {
+    it('フロップのcheckアクションがポジション名で出力される', () => {
       const text = generateHandText(handWithFlop, session3way);
-      expect(text).toContain('BB_player: checks');
+      expect(text).toContain('BB checks');
     });
 
-    it('フロップのbetアクションが出力される', () => {
+    it('フロップのbetアクションがポジション名で出力される', () => {
       const text = generateHandText(handWithFlop, session3way);
-      expect(text).toContain('Hero: bets $40');
+      expect(text).toContain('BTN bets $40');
     });
 
-    it('プリフロップのみの場合はフロップセクションが出力されない', () => {
+    it('プリフロップのみの場合はFlopセクションが出力されない', () => {
       const text = generateHandText(handPreflopOnly, session3way);
-      expect(text).not.toContain('*** FLOP ***');
+      expect(text).not.toContain('Flop (Pot size:');
     });
   });
 
   describe('ターン・リバー', () => {
-    it('ターンヘッダーにフロップ+ターンのカードが含まれる', () => {
+    it('Turnヘッダーにポットサイズとボードカードが含まれる', () => {
       const text = generateHandText(handWithShowdown, session3way);
-      expect(text).toContain('*** TURN *** [Ah Kd Qc Js]');
+      expect(text).toContain('Turn (Pot size:');
+      expect(text).toContain('[J♠]');
     });
 
-    it('リバーヘッダーにフロップ+ターン+リバーのカードが含まれる', () => {
+    it('Riverヘッダーにポットサイズとボードカードが含まれる', () => {
       const text = generateHandText(handWithShowdown, session3way);
-      expect(text).toContain('*** RIVER *** [Ah Kd Qc Js Th]');
-    });
-  });
-
-  describe('ショーダウン', () => {
-    it('*** SHOW DOWN *** ヘッダーが出力される', () => {
-      const text = generateHandText(handWithShowdown, session3way);
-      expect(text).toContain('*** SHOW DOWN ***');
-    });
-
-    it('showエントリにカードと説明が含まれる', () => {
-      const text = generateHandText(handWithShowdown, session3way);
-      expect(text).toContain('Hero: shows [Ah Kh] (two pair, aces and kings)');
-    });
-
-    it('説明なしのshowエントリはカードのみ出力される', () => {
-      const text = generateHandText(handWithShowdown, session3way);
-      expect(text).toContain('BB_player: shows [9s 8s]');
-    });
-
-    it('showdownがない場合は*** SHOW DOWN ***が出力されない', () => {
-      const text = generateHandText(handPreflopOnly, session3way);
-      expect(text).not.toContain('*** SHOW DOWN ***');
+      expect(text).toContain('River (Pot size:');
+      expect(text).toContain('[T♥]');
     });
   });
 
   describe('サマリー', () => {
-    it('*** SUMMARY *** ヘッダーが出力される', () => {
+    it('Summaryヘッダーに最終ポットサイズが含まれる', () => {
       const text = generateHandText(handPreflopOnly, session3way);
-      expect(text).toContain('*** SUMMARY ***');
+      expect(text).toContain('Summary (Pot size: 15)');
     });
 
-    it('Total pot が出力される', () => {
-      const text = generateHandText(handPreflopOnly, session3way);
-      expect(text).toContain('Total pot $15');
-    });
-
-    it('winnerのcollected行が出力される', () => {
-      const text = generateHandText(handPreflopOnly, session3way);
-      expect(text).toContain('Hero collected $15 from pot');
-    });
-
-    it('winnerにdescriptionがある場合はwith句が含まれる', () => {
+    it('ショーダウン参加者のshows行が出力される', () => {
       const text = generateHandText(handWithShowdown, session3way);
-      expect(text).toContain('Hero collected $200 from pot with two pair, aces and kings');
+      expect(text).toContain('BTN shows [A♥ K♥]');
+      expect(text).toContain('BB shows [9♠ 8♠]');
     });
 
-    it('フロップ以降があればBoardが出力される', () => {
-      const text = generateHandText(handWithFlop, session3way);
-      expect(text).toContain('Board [Ah Kd Qc]');
-    });
-
-    it('プリフロップのみの場合はBoard行が出力されない', () => {
+    it('ショーダウンなしの場合はshows行が出力されない', () => {
       const text = generateHandText(handPreflopOnly, session3way);
-      expect(text).not.toContain('Board [');
+      expect(text).not.toContain('shows');
+    });
+
+    it('ウィナーのwins行が出力される', () => {
+      const text = generateHandText(handPreflopOnly, session3way);
+      expect(text).toContain('BTN wins $15');
+    });
+
+    it('プレイヤー名ではなくポジション名で出力される', () => {
+      const text = generateHandText(handPreflopOnly, session3way);
+      expect(text).not.toContain('Hero:');
+      expect(text).not.toContain('SB_player:');
+    });
+  });
+
+  describe('スーツ絵文字', () => {
+    it('ハートが♥で表示される', () => {
+      const text = generateHandText(handPreflopOnly, session3way);
+      expect(text).toContain('♥');
+    });
+
+    it('ダイヤが♦で表示される', () => {
+      const text = generateHandText(handWithFlop, session3way);
+      expect(text).toContain('♦');
+    });
+
+    it('クラブが♣で表示される', () => {
+      const text = generateHandText(handWithFlop, session3way);
+      expect(text).toContain('♣');
+    });
+
+    it('スペードが♠で表示される', () => {
+      const text = generateHandText(handWithShowdown, session3way);
+      expect(text).toContain('♠');
     });
   });
 

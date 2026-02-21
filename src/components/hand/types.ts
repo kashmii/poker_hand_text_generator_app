@@ -40,13 +40,14 @@ export interface HandFlowState {
   // 各プレイヤーが現在のストリートに投入した額
   contributions: Record<string, number>;
   /**
-   * ストリート終了の「締め切りインデックス」。
-   * 最後にbet/raise/allinした人のactiveOrder上のインデックス。
-   * そのインデックスに到達（またはラップ通過）して allSquared になるとストリート終了。
-   * bet/raise がなかった場合（check ラウンド）は -1（lappedEnd で判定）。
-   * ストリート開始時は preflop なら BB の位置（order 末尾）、postflop なら -1。
+   * ストリート終了の「締め切りプレイヤーID」。
+   * このプレイヤーがアクション（call/check/fold）したとき、
+   * allSquared であればストリート終了と判定する。
+   * - プリフロップ開始時: BB のID（BBが必ずアクションする）
+   * - bet/raise/allin 後: ベッター自身のID（ベッターの直前の人がコールしたら終了）
+   * - ポストフロップ開始（checkラウンド）: null（lappedEnd で判定）
    */
-  closingActorIdx: number;
+  closingPlayerId: string | null;
   // ポット累積
   pot: number;
   // フェーズ

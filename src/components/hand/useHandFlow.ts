@@ -116,16 +116,6 @@ export function useHandFlow(session: SessionConfig) {
     return c;
   };
 
-  /**
-   * プリフロップの初期 closingActorIdx を計算する。
-   * BB（preflopOrder の末尾）が必ずアクションを持つため、
-   * BB の activeOrder 上のインデックス = preflopOrder.length - 1（fold なし時）。
-   */
-  const initClosingActorIdx = (): number => {
-    // プリフロップ開始時は全員アクティブなので preflopOrder の末尾インデックス
-    return preflopOrder.length - 1;
-  };
-
   const [state, setState] = useState<HandFlowState>({
     currentStreet: 'preflop',
     streets: emptyStreets(),
@@ -140,7 +130,8 @@ export function useHandFlow(session: SessionConfig) {
     showdownQueue: [],
     showdownRecords: [],
     winnerId: null,
-    closingActorIdx: initClosingActorIdx(),
+    // プリフロップ開始時: BBが必ず最後にアクションする締め切り人
+    closingPlayerId: preflopOrder[preflopOrder.length - 1] ?? null,
   });
 
   // 履歴スタック（「戻る」用）
@@ -200,7 +191,7 @@ export function useHandFlow(session: SessionConfig) {
     }
 
     // 次のストリートへ（ボード入力）
-    // postflop は check ラウンドから始まるので closingActorIdx = -1（lappedEnd で判定）
+    // postflop は check ラウンドから始まるので closingPlayerId = null（lappedEnd で判定）
     const nextStreet = STREETS[nextStreetIdx];
     return {
       ...newState,
@@ -209,7 +200,7 @@ export function useHandFlow(session: SessionConfig) {
       currentActorIdx: 0,
       currentBet: 0,
       contributions: Object.fromEntries(playerIds.map((id) => [id, 0])),
-      closingActorIdx: -1,
+      closingPlayerId: null,
     };
   };
 
@@ -274,67 +265,57 @@ export function useHandFlow(session: SessionConfig) {
           newActorIdx = (prev.currentActorIdx + 1) % Math.max(newOrder.length, 1);
         }
 
-        // ---- closingActorIdx の更新 ----
-        // bet/raise/allin: ベットしたプレイヤーが新しい「締め切り」になる。
-        //   newOrder 上でのベッターのインデックスが新しい closingActorIdx。
-        // それ以外: closingActorIdx はそのまま維持（ただし fold でリストが縮む場合は調整）。
-        let newClosingActorIdx = prev.closingActorIdx;
+        // ---- closingPlayerId の更新 ----
+        // closingPlayerId は「このプレイヤーがコール/チェック/フォールドした後に
+        // ストリート終了を検討する」基準プレイヤーのID。
+        //
+        // 具体的には「ベッターの1つ前（order上で直前）の人」= bet後に最後にアクションする人。
+        // プリフロップ初期（bet前）: BBが最後なのでBBの1つ前 = SBになってしまうため、
+        // 特別扱いとして preflopOrder の末尾（BB）を直接 closingPlayerId とする。
+        // bet/raise/allin 後: ベッターの order 上1つ前の人を新しい closingPlayerId にする。
+        let newClosingPlayerId = prev.closingPlayerId;
         if (type === 'bet' || type === 'raise' || type === 'allin') {
-          // ベッター自身が新しい締め切り基準
-          newClosingActorIdx = newOrder.indexOf(actorId);
-          if (newClosingActorIdx < 0) newClosingActorIdx = newOrder.length - 1;
-        } else if (type === 'fold' && prev.closingActorIdx >= 0) {
-          // fold でリストが1つ縮むとき、締め切りインデックスも調整する。
-          // fold したアクターの元インデックス (prev.currentActorIdx) より前の人が fold した場合は
-          // closingActorIdx が1ずれる可能性がある。
-          // 簡単な方法: newOrder での締め切りプレイヤーのインデックスを再計算。
-          const closingPlayerId = order[prev.closingActorIdx];
-          if (closingPlayerId) {
-            const newClosingIdx = newOrder.indexOf(closingPlayerId);
-            newClosingActorIdx = newClosingIdx >= 0 ? newClosingIdx : newOrder.length - 1;
+          // ベッターの newOrder 上1つ前の人が最後にアクションする人
+          const betterIdx = newOrder.indexOf(actorId);
+          if (betterIdx >= 0) {
+            const prevIdx = (betterIdx - 1 + newOrder.length) % newOrder.length;
+            newClosingPlayerId = newOrder[prevIdx] ?? null;
           } else {
-            // 締め切りプレイヤー自身がfoldした場合はリストの末尾を新たな締め切りとする
-            newClosingActorIdx = newOrder.length - 1;
+            newClosingPlayerId = newOrder[newOrder.length - 1] ?? null;
+          }
+        } else if (type === 'fold' && prev.closingPlayerId !== null) {
+          // fold でリストが縮んだとき、締め切り人がまだ newOrder にいれば維持。
+          // いなければ（= 締め切り人自身が fold）newOrder の末尾に変更。
+          if (!newOrder.includes(prev.closingPlayerId)) {
+            newClosingPlayerId = newOrder[newOrder.length - 1] ?? null;
           }
         }
 
         // ---- ストリート終了判定 ----
         //
         // rawIdx: アクション後の「次に進もうとしているインデックス（折り返し前）」
-        //   fold の場合は位置はそのまま (prev.currentActorIdx)、
-        //   それ以外は +1 した値。
         const rawIdx = type === 'fold' ? prev.currentActorIdx : prev.currentActorIdx + 1;
         const lappedEnd = rawIdx >= newOrder.length;
-
         const allSquared = active.every((id) => newContributions[id] >= newBet);
 
         let streetOver: boolean;
         if (active.length <= 1) {
-          // アクティブが1人以下: 全員fold → fold勝ち
+          // アクティブが1人以下 → fold勝ち
           streetOver = true;
         } else if (newBet === 0) {
-          // ベットなし（全員checkのみ）のラウンド:
-          // order の末尾を一周通過した = 全員checkした
-          // closingActorIdx が -1 のとき（postflop 開始時など）はこちらで判定
+          // ベットなし（全員checkのみ）: 末尾を一周通過したら終了
           streetOver = lappedEnd;
         } else if (type === 'bet' || type === 'raise' || type === 'allin') {
-          // bet/raise/allin の直後:
-          // betアクターが newOrder の最後にいるなら（afterBetRaw >= length）、
-          // かつ全員揃っていれば終了（全員が既にcallしていたケース）。
+          // bet/raise/allin 直後: ベッターが末尾 かつ 全員揃っていれば即終了
           const actorNewIdx = newOrder.indexOf(actorId);
           const afterBetRaw = actorNewIdx >= 0 ? actorNewIdx + 1 : newOrder.length;
           streetOver = afterBetRaw >= newOrder.length && allSquared;
         } else {
           // call / fold の後:
-          // 「rawIdx が closingActorIdx を超えた」= 締め切りプレイヤーを通過した
-          // かつ全員のcontributionがcurrentBetに揃っていれば終了。
-          //
-          // closingActorIdx >= 0: bet/raise が起きたストリート（プリフロップ含む）
-          //   → rawIdx > newClosingActorIdx で締め切り通過を判定
-          // closingActorIdx < 0: check ラウンド（通常は newBet===0 で上で処理済み）
-          //   → lappedEnd で判定（フォールバック）
-          if (newClosingActorIdx >= 0) {
-            streetOver = rawIdx > newClosingActorIdx && allSquared;
+          // 締め切り人（closingPlayerId）が今アクションした人（actorId）と一致し、
+          // かつ全員揃っていれば終了。
+          if (newClosingPlayerId !== null) {
+            streetOver = actorId === newClosingPlayerId && allSquared;
           } else {
             streetOver = lappedEnd && allSquared;
           }
@@ -348,7 +329,7 @@ export function useHandFlow(session: SessionConfig) {
           currentBet: newBet,
           pot: newPot,
           currentActorIdx: newActorIdx,
-          closingActorIdx: newClosingActorIdx,
+          closingPlayerId: newClosingPlayerId,
           phase: 'action',
         };
 

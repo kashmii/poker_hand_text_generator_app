@@ -1,73 +1,73 @@
-# React + TypeScript + Vite
+# Poker Hand Text Generator
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+ライブポーカーのハンドをテキスト形式で一時的に記録・共有するためのWebアプリ
 
-Currently, two official plugins are available:
+## 概要
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+ポーカーセッションで遊んだハンドをその場でスマホから入力し、友達やコミュニティへの共有用テキストをワンタップで生成できます。データベース不要で、ブラウザ上のみで動作します。
 
-## React Compiler
+## 主な機能
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- **セッション設定** — ブラインド額、プレイヤー人数、通貨、店名・日付を設定
+- **ハンド入力** — ストリートごとのアクション（fold / check / call / bet / raise / all-in / straddle）を順番にタップ入力
+- **ボード入力** — フロップ・ターン・リバーのコミュニティカードを選択
+- **ショーダウン対応** — ショーダウンでのホールカード表示と勝者記録
+- **サイドポット対応** — 3人以上でオールインが発生した場合の継続アクションを正しく処理
+- **テキスト出力** — コピー可能なハンド履歴テキストを自動生成（英語 / 日本語切替）
+- **タイトル付与** — 記録したハンドにタイトルを設定（最大20文字、インライン編集）
+- **複数ハンド管理** — セッション中に複数ハンドを記録し、まとめてコピー可能
 
-## Expanding the ESLint configuration
+## 出力フォーマット例
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+```
+2026-02-22
+KKでポット獲得
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+$1/2 - 6 players
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+Setup
+CO [K♠ K♦]
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+Preflop (Pot size: 0)
+SB posts small blind $1
+BB posts big blind $2
+UTG folds
+HJ folds
+CO raises $12
+BTN folds
+SB folds
+BB calls $10
+
+Flop (Pot size: 25) [A♥ 7♣ 2♦]
+BB checks
+CO bets $15
+BB folds
+
+Summary (Pot size: 40)
+CO wins $40
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## 技術スタック
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+- **React 19** + **TypeScript**
+- **Vite** (ビルドツール)
+- **React Router v7** (ルーティング)
+- **Vitest** + **@testing-library/react** (テスト)
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+## セットアップ
+
+```bash
+npm install
+npm run dev
 ```
+
+## テスト
+
+```bash
+npm test
+```
+
+## 注意事項
+
+- データはブラウザのメモリ上にのみ保存されます。ページをリロードすると消えます
+- コピーしたテキストを別途保存してください

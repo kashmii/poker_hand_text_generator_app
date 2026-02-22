@@ -96,24 +96,19 @@ export default function ActionPanel({
       {inputMode === 'numpad' ? (
         /* ===== テンキー入力モード ===== */
         <div className="numpad-wrap">
-          {/* 金額プリセット */}
-          <div className="numpad-presets">
-            {potPresets.map((p) => (
-              <button
-                key={p.label}
-                type="button"
-                className="numpad-preset-btn"
-                onClick={() => setAmountStr(String(p.value))}
-              >
-                {p.label}
-              </button>
-            ))}
-          </div>
-
-          {/* 入力表示 */}
-          <div className="numpad-display">
-            <span className="numpad-currency">{currency}</span>
-            <span className="numpad-value">{amountStr || '0'}</span>
+          {/* 入力表示 + POTボタン横並び */}
+          <div className="numpad-top-row">
+            <div className="numpad-display">
+              <span className="numpad-currency">{currency}</span>
+              <span className="numpad-value">{amountStr || '0'}</span>
+            </div>
+            <button
+              type="button"
+              className="numpad-preset-btn numpad-pot-btn"
+              onClick={() => setAmountStr(String(potPresets.find(p => p.label === 'POT')?.value ?? pot))}
+            >
+              POT
+            </button>
           </div>
 
           {/* テンキー */}
@@ -130,7 +125,7 @@ export default function ActionPanel({
             ))}
           </div>
 
-          {/* 確定・ALL-IN・キャンセル */}
+          {/* キャンセル・ALL-IN・確定 */}
           <div className="numpad-actions">
             <button type="button" className="btn-secondary" onClick={handleCancelAmount}>
               キャンセル
@@ -139,7 +134,6 @@ export default function ActionPanel({
               type="button"
               className="action-btn action-btn--allin numpad-allin"
               onClick={() => {
-                // numpadに入力済みの金額があればそれをallinのamountとして渡す
                 const inputAmount = Number(amountStr);
                 const allinAmount = inputAmount > 0 ? inputAmount : undefined;
                 onAction('allin', allinAmount);
@@ -156,7 +150,7 @@ export default function ActionPanel({
               onClick={handleConfirmAmount}
               disabled={!amountStr || Number(amountStr) <= 0}
             >
-              {pendingType === 'bet' ? 'BET' : 'RAISE'} 確定
+              確定
             </button>
           </div>
         </div>

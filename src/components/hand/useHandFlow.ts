@@ -111,7 +111,7 @@ function buildShowdownQueue(
 
 
 export function useHandFlow(session: SessionConfig) {
-  const { players, smallBlind, bigBlind } = session;
+  const { players, smallBlind, bigBlind, ante } = session;
   const playerIds = players.map((p) => p.id);
 
   // ストラドル額を動的に管理（アクション中にstraddleが決まる）
@@ -147,7 +147,7 @@ export function useHandFlow(session: SessionConfig) {
     allInIds: new Set(),
     currentBet: bigBlind,
     contributions: initContributions(),
-    pot: smallBlind + bigBlind,
+    pot: smallBlind + bigBlind + ante,
     phase: 'hole-cards',
     holeCards: null,
     showdownQueue: [],

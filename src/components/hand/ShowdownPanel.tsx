@@ -224,7 +224,7 @@ export function ShowdownPlayerPanel({
               })}
             </div>
             {pendingRank && (
-              <div className="board-picker__suits">
+              <div className="board-picker__suits board-picker__suits--active">
                 {SUITS.map((s) => {
                   const used = isSuitUsed(pendingRank, s.value);
                   return (

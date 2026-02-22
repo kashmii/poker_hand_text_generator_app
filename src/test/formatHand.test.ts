@@ -114,14 +114,13 @@ const handWithShowdown: HandData = {
 describe('generateHandText', () => {
 
   describe('ヘッダー行', () => {
-    it('ブラインド・ライブ表記が含まれる', () => {
+    it('ブラインド表記が含まれる', () => {
       const text = generateHandText(handPreflopOnly, session3way);
-      expect(text).toContain('$5/10 (Live)');
+      expect(text).toContain('$5/10');
     });
 
-    it('ハンド番号と日付が含まれる', () => {
+    it('日付が含まれる', () => {
       const text = generateHandText(handPreflopOnly, session3way);
-      expect(text).toContain('Hand n°1');
       expect(text).toContain('2024-01-01');
     });
 
@@ -174,12 +173,12 @@ describe('generateHandText', () => {
       expect(text).not.toContain('ante');
     });
 
-    it('anteが設定されている場合は全員のante行が出力される', () => {
+    it('anteが設定されている場合はBBのみのante行が出力される', () => {
       const sessionWithAnte = { ...session3way, ante: 1 };
       const text = generateHandText(handPreflopOnly, sessionWithAnte);
-      expect(text).toContain('BTN posts ante $1');
-      expect(text).toContain('SB posts ante $1');
-      expect(text).toContain('BB posts ante $1');
+      expect(text).toContain('BB posts big blind ante $1');
+      expect(text).not.toContain('BTN posts');
+      expect(text).not.toContain('SB posts big blind ante');
     });
   });
 

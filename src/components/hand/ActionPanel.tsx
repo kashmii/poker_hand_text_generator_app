@@ -138,7 +138,15 @@ export default function ActionPanel({
             <button
               type="button"
               className="action-btn action-btn--allin numpad-allin"
-              onClick={() => { onAction('allin'); setInputMode('none'); setPendingType(null); setAmountStr(''); }}
+              onClick={() => {
+                // numpadに入力済みの金額があればそれをallinのamountとして渡す
+                const inputAmount = Number(amountStr);
+                const allinAmount = inputAmount > 0 ? inputAmount : undefined;
+                onAction('allin', allinAmount);
+                setInputMode('none');
+                setPendingType(null);
+                setAmountStr('');
+              }}
             >
               ALL-IN
             </button>

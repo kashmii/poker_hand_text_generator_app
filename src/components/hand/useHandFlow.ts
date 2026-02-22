@@ -346,8 +346,10 @@ export function useHandFlow(session: SessionConfig) {
           newPot += added;
         } else if (type === 'allin') {
           // allin: amount が指定されていればその額、なければプレイヤーのスタック（実効スタック）を使用
+          // スタックが未設定(0)の場合は currentBet をフォールバックとして使う
           const playerStack = players.find((p) => p.id === actorId)?.stack ?? 0;
-          const total = amount ?? Math.max(playerStack, prev.currentBet);
+          const fallback = playerStack > 0 ? playerStack : prev.currentBet;
+          const total = (amount !== undefined && amount > 0) ? amount : fallback;
           const added = Math.max(0, total - (newContributions[actorId] ?? 0));
           newContributions[actorId] = total;
           if (total > newBet) newBet = total;
@@ -382,8 +384,20 @@ export function useHandFlow(session: SessionConfig) {
             const prevIdx = (betterIdx - 1 + newOrder.length) % newOrder.length;
             newClosingPlayerId = newOrder[prevIdx] ?? null;
           } else {
-            // allinでnewOrderから除かれた場合: newOrderの末尾が締め切り人
-            newClosingPlayerId = newOrder[newOrder.length - 1] ?? null;
+            // allinでnewOrderから除かれた場合:
+            // allin前のactiveOrderでactorの1つ前のプレイヤーをclosingPlayerにする
+            const prevOrder = order; // allin前のactiveOrder
+            const actorInPrevIdx = prevOrder.indexOf(actorId);
+            if (actorInPrevIdx >= 0 && prevOrder.length > 1) {
+              const prevIdx = (actorInPrevIdx - 1 + prevOrder.length) % prevOrder.length;
+              const candidate = prevOrder[prevIdx];
+              // candidateがnewOrderに存在する場合はそのプレイヤー、なければnewOrderの末尾
+              newClosingPlayerId = (candidate && newOrder.includes(candidate))
+                ? candidate
+                : (newOrder[newOrder.length - 1] ?? null);
+            } else {
+              newClosingPlayerId = newOrder[newOrder.length - 1] ?? null;
+            }
           }
         } else if (type === 'fold' && prev.closingPlayerId !== null) {
           if (!newOrder.includes(prev.closingPlayerId)) {

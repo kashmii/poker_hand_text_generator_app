@@ -324,6 +324,112 @@ describe('useHandFlow: ストリート終了ロジック', () => {
       expect(result.current.state.phase).toBe('winner');
     });
 
+    it('【回帰】サイドポット: 3way BTNcall→SBallin→BBcall→BTNcallでフロップへ遷移', () => {
+      // preflopOrder = [BTN, SB, BB]
+      // SBがオールイン(30)した後、BBとBTNはコールが必要（サイドポットシナリオ）
+      // SBのオールインはレイズ相当なのでBTN（すでにcall済み）にも再アクションが必要
+      const session: SessionConfig = {
+        ...makeSession3way(),
+        players: [
+          { id: 'btn', name: 'BTN', stack: 1000, position: 0 },
+          { id: 'sb',  name: 'SB',  stack: 30, position: 1 },
+          { id: 'bb',  name: 'BB',  stack: 1000, position: 2 },
+        ],
+      };
+      const { result } = renderHook(() => useHandFlow(session));
+      skipHoleCards(result);
+
+      act(() => { result.current.commitAction('call'); });       // BTN call 10
+      act(() => { result.current.commitAction('allin', 30); }); // SB all-in 30 (raise相当)
+
+      // BBが次のアクター
+      expect(result.current.state.phase).toBe('action');
+      expect(result.current.actorId).toBe('bb');
+      // closingPlayerIdはBTN（SBのレイズ前に行動したプレイヤー）
+      expect(result.current.state.closingPlayerId).toBe('btn');
+
+      act(() => { result.current.commitAction('call'); });  // BB call
+
+      // BBのコール後もBTNにアクションが必要
+      expect(result.current.state.phase).toBe('action');
+      expect(result.current.actorId).toBe('btn');
+
+      act(() => { result.current.commitAction('call'); });  // BTN call → street over
+
+      expect(result.current.state.phase).toBe('board-input');
+      expect(result.current.state.currentStreet).toBe('flop');
+    });
+
+    it('【回帰】サイドポット: プリフロップSBallin後のフロップでBBとBTNがアクション可能', () => {
+      // SBがオールイン後、BBとBTNがコールしてフロップへ
+      // フロップではSBはallin済みなのでBBとBTNのみアクション可能
+      const session: SessionConfig = {
+        ...makeSession3way(),
+        players: [
+          { id: 'btn', name: 'BTN', stack: 1000, position: 0 },
+          { id: 'sb',  name: 'SB',  stack: 30, position: 1 },
+          { id: 'bb',  name: 'BB',  stack: 1000, position: 2 },
+        ],
+      };
+      const { result } = renderHook(() => useHandFlow(session));
+      skipHoleCards(result);
+
+      act(() => { result.current.commitAction('call'); });       // BTN call 10
+      act(() => { result.current.commitAction('allin', 30); }); // SB all-in 30
+      act(() => { result.current.commitAction('call'); });       // BB call
+      act(() => { result.current.commitAction('call'); });       // BTN call → flop
+      act(() => { result.current.confirmBoard(); });             // confirm flop
+
+      // フロップ: postflopOrder = [BB, BTN] (SBはallin除外)
+      expect(result.current.state.phase).toBe('action');
+      expect(result.current.actorId).toBe('bb');
+
+      // BBがベット → BTNがコールでターンへ
+      act(() => { result.current.commitAction('bet', 50); });   // BB bet
+      expect(result.current.actorId).toBe('btn');
+      act(() => { result.current.commitAction('call'); });       // BTN call
+
+      expect(result.current.state.phase).toBe('board-input');
+      expect(result.current.state.currentStreet).toBe('turn');
+    });
+
+    it('【回帰】サイドポット: ポストフロップでSBallin後に他2人がベット/コール', () => {
+      // フロップでSBがオールイン → BBがベット（サイドポット発生）→ BTNがコールでターンへ
+      const session: SessionConfig = {
+        ...makeSession3way(),
+        players: [
+          { id: 'btn', name: 'BTN', stack: 1000, position: 0 },
+          { id: 'sb',  name: 'SB',  stack: 50, position: 1 },
+          { id: 'bb',  name: 'BB',  stack: 1000, position: 2 },
+        ],
+      };
+      const { result } = renderHook(() => useHandFlow(session));
+      skipHoleCards(result);
+
+      // プリフロップ: 全員コール
+      act(() => { result.current.commitAction('call'); });   // BTN call
+      act(() => { result.current.commitAction('call'); });   // SB call
+      act(() => { result.current.commitAction('check'); });  // BB check
+      act(() => { result.current.confirmBoard(); });          // confirm flop
+
+      // フロップ: postflopOrder = [SB, BB, BTN]
+      // SBがオールイン(50) → BBはアクター
+      act(() => { result.current.commitAction('allin', 50); }); // SB all-in
+
+      expect(result.current.state.phase).toBe('action');
+      expect(result.current.actorId).toBe('bb');
+
+      // BBがベット（SBのオールインを超えるベット）
+      act(() => { result.current.commitAction('bet', 100); }); // BB bet 100 (sidepot)
+
+      expect(result.current.state.phase).toBe('action');
+      expect(result.current.actorId).toBe('btn');
+
+      act(() => { result.current.commitAction('call'); }); // BTN call → turn
+      expect(result.current.state.phase).toBe('board-input');
+      expect(result.current.state.currentStreet).toBe('turn');
+    });
+
     it('プリフロップ: 2プレイヤーがオールイン状態でフロップ以降アクション不要', () => {
       // 3way: UTG allin → BTN(SB) call → BB call → 全員EquityFixed → no action on flop
       // ただし3wayなのでBTN→SBで順番変わる

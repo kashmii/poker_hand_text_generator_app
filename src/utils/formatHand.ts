@@ -230,10 +230,10 @@ function computeStreetPot(
   const streetOrder = ['preflop', 'flop', 'turn', 'river'] as const;
   const upToIdx = streetOrder.indexOf(upToStreet);
 
-  // upToStreet の1つ前のストリートまでの投資を集計
+  // upToStreet 自身を含むストリートまでの投資を集計
   const contributions: Record<string, number> = {};
 
-  for (let si = 0; si < upToIdx; si++) {
+  for (let si = 0; si <= upToIdx; si++) {
     const street = streetOrder[si];
     const actions =
       street === 'preflop'

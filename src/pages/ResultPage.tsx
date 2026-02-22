@@ -4,7 +4,7 @@ import { useApp } from '../context/AppContext';
 import HandReview from '../components/HandReview';
 
 export default function ResultPage() {
-  const { session, sessionReady, hands, settings, updateSettings, deleteHand } = useApp();
+  const { session, sessionReady, hands, settings, updateSettings, saveHand, deleteHand } = useApp();
   const navigate = useNavigate();
 
   // セッション未設定ならSetupへ
@@ -23,6 +23,7 @@ export default function ResultPage() {
       onEditSettings={() => navigate('/setup')}
       onUpdateSettings={updateSettings}
       onDeleteHand={deleteHand}
+      onUpdateHand={saveHand}
     />
   );
 }

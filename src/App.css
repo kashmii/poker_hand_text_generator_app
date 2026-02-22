@@ -770,7 +770,7 @@ input[type='radio'] {
 .hand-list-item {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: 0.5rem;
   padding: 0.75rem 1rem;
   border-bottom: 1px solid var(--color-border);
   cursor: pointer;
@@ -784,6 +784,13 @@ input[type='radio'] {
   border-left: 3px solid var(--color-primary);
 }
 
+.hand-list-item__info {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
 .hand-num {
   font-weight: 600;
 }
@@ -794,6 +801,40 @@ input[type='radio'] {
   background: var(--color-surface2);
   padding: 0.2rem 0.5rem;
   border-radius: var(--radius-sm);
+}
+
+.hand-title {
+  flex: 1;
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+  cursor: text;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 0.1rem 0.3rem;
+  border-radius: var(--radius-sm);
+}
+.hand-title:hover {
+  background: var(--color-surface2);
+  color: var(--color-text);
+}
+
+.hand-title--placeholder {
+  opacity: 0.4;
+  font-style: italic;
+}
+
+.hand-title-input {
+  flex: 1;
+  font-size: 0.85rem;
+  background: var(--color-surface2);
+  border: 1px solid var(--color-primary);
+  border-radius: var(--radius-sm);
+  color: var(--color-text);
+  padding: 0.1rem 0.3rem;
+  min-width: 0;
+  outline: none;
 }
 
 /* ===== OUTPUT TEXT ===== */

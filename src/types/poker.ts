@@ -82,6 +82,7 @@ export interface HandData {
     description?: string; // "with flush" など
   }[];
   notes?: string;
+  title?: string;
 }
 
 // ========== アプリ状態 ==========

@@ -10,6 +10,7 @@ interface Props {
   onEditSettings: () => void;
   onUpdateSettings: (patch: Partial<AppSettings>) => void;
   onDeleteHand: (id: string) => void;
+  onUpdateHand: (hand: HandData) => void;
 }
 
 export default function HandReview({
@@ -20,12 +21,15 @@ export default function HandReview({
   onEditSettings,
   onUpdateSettings,
   onDeleteHand,
+  onUpdateHand,
 }: Props) {
   const [selectedHandId, setSelectedHandId] = useState<string | null>(
     hands.length > 0 ? hands[hands.length - 1].id : null
   );
   const [copied, setCopied] = useState(false);
   const [allCopied, setAllCopied] = useState(false);
+  const [editingTitleId, setEditingTitleId] = useState<string | null>(null);
+  const [editingTitleValue, setEditingTitleValue] = useState('');
 
   const selectedHand = hands.find((h) => h.id === selectedHandId) ?? null;
 
@@ -105,10 +109,46 @@ export default function HandReview({
                 className={`hand-list-item ${selectedHandId === h.id ? 'hand-list-item--active' : ''}`}
                 onClick={() => setSelectedHandId(h.id)}
               >
-                <span className="hand-num">Hand #{h.handNumber}</span>
-                <span className="hand-streets">
-                  {h.streets.flop ? (h.streets.turn ? (h.streets.river ? 'River' : 'Turn') : 'Flop') : 'Preflop'}
-                </span>
+                <div className="hand-list-item__info">
+                  <span className="hand-num">Hand #{h.handNumber}</span>
+                  <span className="hand-streets">
+                    {h.streets.flop ? (h.streets.turn ? (h.streets.river ? 'River' : 'Turn') : 'Flop') : 'Preflop'}
+                  </span>
+                </div>
+                {editingTitleId === h.id ? (
+                  <input
+                    type="text"
+                    className="hand-title-input"
+                    value={editingTitleValue}
+                    maxLength={20}
+                    autoFocus
+                    onClick={(e) => e.stopPropagation()}
+                    onChange={(e) => setEditingTitleValue(e.target.value)}
+                    onBlur={() => {
+                      onUpdateHand({ ...h, title: editingTitleValue.trim() || undefined });
+                      setEditingTitleId(null);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        onUpdateHand({ ...h, title: editingTitleValue.trim() || undefined });
+                        setEditingTitleId(null);
+                      } else if (e.key === 'Escape') {
+                        setEditingTitleId(null);
+                      }
+                    }}
+                  />
+                ) : (
+                  <span
+                    className="hand-title"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setEditingTitleId(h.id);
+                      setEditingTitleValue(h.title ?? '');
+                    }}
+                  >
+                    {h.title || <span className="hand-title--placeholder">タイトルを追加</span>}
+                  </span>
+                )}
                 <button
                   type="button"
                   className="btn-delete"

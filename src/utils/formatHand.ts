@@ -9,7 +9,10 @@ import type {
 
 // ========== カード表示 ==========
 const SUIT_SYMBOLS: Record<string, string> = {
-  h: '♥', d: '♦', c: '♣', s: '♠',
+  h: '♥',
+  d: '♦',
+  c: '♣',
+  s: '♠',
 };
 
 function formatCard(card: Card): string {
@@ -33,7 +36,10 @@ const POSITION_LABELS_BY_COUNT: Record<number, string[]> = {
 };
 
 function getPositionLabel(playerIdx: number, totalPlayers: number): string {
-  return POSITION_LABELS_BY_COUNT[totalPlayers]?.[playerIdx] ?? `Seat${playerIdx + 1}`;
+  return (
+    POSITION_LABELS_BY_COUNT[totalPlayers]?.[playerIdx] ??
+    `Seat${playerIdx + 1}`
+  );
 }
 
 // ========== アクション文字列 ==========
@@ -41,7 +47,7 @@ function formatAction(
   action: Action,
   posLabel: string,
   currency: string,
-  _lang: OutputLanguage
+  _lang: OutputLanguage,
 ): string {
   const c = currency;
   switch (action.type) {
@@ -68,7 +74,7 @@ function formatAction(
 export function generateHandText(
   hand: HandData,
   session: SessionConfig,
-  lang: OutputLanguage = 'en'
+  lang: OutputLanguage = 'en',
 ): string {
   const { players, smallBlind, bigBlind, ante, currency, heroId } = session;
   const totalPlayers = players.length;
@@ -83,8 +89,10 @@ export function generateHandText(
   const lines: string[] = [];
 
   // --- ヘッダー ---
-  lines.push(`${c}${smallBlind}/${bigBlind} (Live)`);
-  lines.push(`Hand n°${hand.handNumber} - ${hand.id ? session.date : session.date}`);
+  lines.push(`${hand.id ? session.date : session.date}`);
+  if (hand.title) {
+    lines.push(hand.title);
+  }
   lines.push('');
   lines.push(`${c}${smallBlind}/${bigBlind} - ${totalPlayers} players`);
   lines.push('');
@@ -110,8 +118,12 @@ export function generateHandText(
       lines.push(`${posLabel} posts ante ${c}${ante.toLocaleString()}`);
     });
   }
-  lines.push(`${posLabelMap[sbPlayer.id] ?? 'SB'} posts small blind ${c}${smallBlind.toLocaleString()}`);
-  lines.push(`${posLabelMap[bbPlayer.id] ?? 'BB'} posts big blind ${c}${bigBlind.toLocaleString()}`);
+  lines.push(
+    `${posLabelMap[sbPlayer.id] ?? 'SB'} posts small blind ${c}${smallBlind.toLocaleString()}`,
+  );
+  lines.push(
+    `${posLabelMap[bbPlayer.id] ?? 'BB'} posts big blind ${c}${bigBlind.toLocaleString()}`,
+  );
   hand.streets.preflop.actions.forEach((a) => {
     const posLabel = posLabelMap[a.playerId] ?? '';
     const line = formatAction(a, posLabel, c, lang);
@@ -123,7 +135,13 @@ export function generateHandText(
     // フロップ開始時のポット = プリフロップ終了時のポット
     // pot はハンド全体の最終ポットなのでここでは計算できないが、
     // シンプルに各ストリート分を積算する
-    const preflopPot = computeStreetPot(hand, 'preflop', smallBlind, bigBlind, ante);
+    const preflopPot = computeStreetPot(
+      hand,
+      'preflop',
+      smallBlind,
+      bigBlind,
+      ante,
+    );
     const boardStr = hand.streets.flop.board
       ? `[${formatCardsSpaced(hand.streets.flop.board)}]`
       : '';
@@ -153,7 +171,13 @@ export function generateHandText(
 
   // --- リバー ---
   if (hand.streets.river) {
-    const riverPot = computeStreetPot(hand, 'river', smallBlind, bigBlind, ante);
+    const riverPot = computeStreetPot(
+      hand,
+      'river',
+      smallBlind,
+      bigBlind,
+      ante,
+    );
     const boardStr = hand.streets.river.board
       ? `[${formatCardsSpaced(hand.streets.river.board)}]`
       : '';
@@ -214,13 +238,16 @@ function computeStreetPot(
 
   for (let si = 0; si < upToIdx; si++) {
     const street = streetOrder[si];
-    const actions = street === 'preflop'
-      ? hand.streets.preflop.actions
-      : hand.streets[street]?.actions ?? [];
+    const actions =
+      street === 'preflop'
+        ? hand.streets.preflop.actions
+        : (hand.streets[street]?.actions ?? []);
 
     // ストリートごとにcontributionsをリセット（ポストフロップ）
     if (si > 0) {
-      Object.keys(contributions).forEach((k) => { contributions[k] = 0; });
+      Object.keys(contributions).forEach((k) => {
+        contributions[k] = 0;
+      });
     }
 
     for (const a of actions) {
@@ -228,7 +255,12 @@ function computeStreetPot(
       if (a.type === 'call') {
         const added = a.amount ?? 0;
         pot += added;
-      } else if (a.type === 'bet' || a.type === 'raise' || a.type === 'allin' || a.type === 'straddle') {
+      } else if (
+        a.type === 'bet' ||
+        a.type === 'raise' ||
+        a.type === 'allin' ||
+        a.type === 'straddle'
+      ) {
         const total = a.amount ?? 0;
         const prev = contributions[a.playerId] ?? 0;
         const added = total - prev;

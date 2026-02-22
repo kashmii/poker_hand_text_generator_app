@@ -4,8 +4,6 @@ import { createDefaultPlayers } from '../context/AppContext';
 import { BLIND_PRESETS } from './setup/constants';
 import BlindSection from './setup/BlindSection';
 import PlayerSection from './setup/PlayerSection';
-import HeroSection from './setup/HeroSection';
-
 interface Props {
   onStart: (config: SessionConfig) => void;
   onViewResult?: () => void;
@@ -17,7 +15,7 @@ export default function SessionSetup({ onStart, onViewResult }: Props) {
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
 
   // ブラインド設定
-  const [currency, setCurrency] = useState('$');
+  const [currency, setCurrency] = useState('₱');
   const [blindPresetIdx, setBlindPresetIdx] = useState(0);
   const [ante, setAnte] = useState(0);
 
@@ -27,11 +25,8 @@ export default function SessionSetup({ onStart, onViewResult }: Props) {
   const bigBlind = selectedPreset.bb;
 
   // プレイヤー設定
-  const [playerCount, setPlayerCount] = useState(6);
-  const [players, setPlayers] = useState(createDefaultPlayers(6));
-
-  // ヒーロー情報
-  const [heroEffectiveStack, setHeroEffectiveStack] = useState(100);
+  const [playerCount, setPlayerCount] = useState(9);
+  const [players, setPlayers] = useState(createDefaultPlayers(9));
 
   const handleCurrencyChange = (val: string) => {
     setCurrency(val);
@@ -59,7 +54,7 @@ export default function SessionSetup({ onStart, onViewResult }: Props) {
       players: configPlayers,
       heroId,
       heroPosition: '',
-      heroEffectiveStack,
+      heroEffectiveStack: 100,
     });
   };
 
@@ -111,12 +106,6 @@ export default function SessionSetup({ onStart, onViewResult }: Props) {
         <PlayerSection
           playerCount={playerCount}
           onPlayerCountChange={handlePlayerCountChange}
-        />
-
-        <HeroSection
-          heroEffectiveStack={heroEffectiveStack}
-          currency={currency}
-          onHeroEffectiveStackChange={setHeroEffectiveStack}
         />
 
         <div className="setup-footer">

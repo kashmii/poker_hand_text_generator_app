@@ -1,13 +1,9 @@
-import { POSITION_LABELS_BY_COUNT } from './constants';
-
 interface Props {
   playerCount: number;
   onPlayerCountChange: (count: number) => void;
 }
 
 export default function PlayerSection({ playerCount, onPlayerCountChange }: Props) {
-  const posLabels = POSITION_LABELS_BY_COUNT[playerCount];
-
   return (
     <section className="form-section">
       <h2>プレイヤー設定</h2>
@@ -23,12 +19,6 @@ export default function PlayerSection({ playerCount, onPlayerCountChange }: Prop
             <option key={n} value={n}>{n}人</option>
           ))}
         </select>
-      </div>
-
-      <div className="position-list">
-        {posLabels.map((label) => (
-          <span key={label} className="position-chip">{label}</span>
-        ))}
       </div>
     </section>
   );

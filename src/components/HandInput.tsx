@@ -218,8 +218,15 @@ export default function HandInput({ session, handNumber, onSave, onCancel, onUpd
   const showdownProgress = state.showdownRecords.length;
   const showdownTotal = state.showdownRecords.length + state.showdownQueue.length;
 
-  // ウィナー選択: アクティブプレイヤー
-  const activePlayers = players.filter((p) => !state.foldedIds.has(p.id));
+  // ウィナー選択: foldしておらず、muckもしていないプレイヤーのみ
+  const muckedPlayerIds = new Set(
+    state.showdownRecords
+      .filter((r) => r.action === 'muck')
+      .map((r) => r.playerId),
+  );
+  const activePlayers = players.filter(
+    (p) => !state.foldedIds.has(p.id) && !muckedPlayerIds.has(p.id),
+  );
   const activePosLabels = activePlayers.map((p) => posLabels[players.indexOf(p)] ?? '');
 
   return (

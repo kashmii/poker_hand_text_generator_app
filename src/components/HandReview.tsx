@@ -1,14 +1,12 @@
 import { useState } from 'react';
-import type { HandData, SessionConfig, AppSettings } from '../types/poker';
+import type { HandData, SessionConfig } from '../types/poker';
 import { generateHandText } from '../utils/formatHand';
 
 interface Props {
   hands: HandData[];
   session: SessionConfig;
-  settings: AppSettings;
   onNewHand: () => void;
   onEditSettings: () => void;
-  onUpdateSettings: (patch: Partial<AppSettings>) => void;
   onDeleteHand: (id: string) => void;
   onUpdateHand: (hand: HandData) => void;
 }
@@ -16,10 +14,8 @@ interface Props {
 export default function HandReview({
   hands,
   session,
-  settings,
   onNewHand,
   onEditSettings,
-  onUpdateSettings,
   onDeleteHand,
   onUpdateHand,
 }: Props) {
@@ -34,11 +30,11 @@ export default function HandReview({
   const selectedHand = hands.find((h) => h.id === selectedHandId) ?? null;
 
   const handText = selectedHand
-    ? generateHandText(selectedHand, buildSessionWithCards(selectedHand, session), settings.outputLanguage)
+    ? generateHandText(selectedHand, buildSessionWithCards(selectedHand, session), 'en')
     : '';
 
   const allHandsText = hands
-    .map((h) => generateHandText(h, buildSessionWithCards(h, session), settings.outputLanguage))
+    .map((h) => generateHandText(h, buildSessionWithCards(h, session), 'en'))
     .join('\n---\n\n');
 
   const handleCopy = async (text: string, setter: (v: boolean) => void) => {
@@ -71,25 +67,6 @@ export default function HandReview({
             + 新しいハンド
           </button>
         </div>
-      </div>
-
-      {/* 設定バー */}
-      <div className="settings-bar">
-        <span className="settings-label">出力言語：</span>
-        <button
-          type="button"
-          className={`lang-btn ${settings.outputLanguage === 'en' ? 'lang-btn--active' : ''}`}
-          onClick={() => onUpdateSettings({ outputLanguage: 'en' })}
-        >
-          English
-        </button>
-        <button
-          type="button"
-          className={`lang-btn ${settings.outputLanguage === 'ja' ? 'lang-btn--active' : ''}`}
-          onClick={() => onUpdateSettings({ outputLanguage: 'ja' })}
-        >
-          日本語
-        </button>
       </div>
 
       {hands.length === 0 ? (

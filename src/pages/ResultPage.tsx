@@ -2,9 +2,10 @@ import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import HandReview from '../components/HandReview';
+import { generateDummyHands } from '../utils/generateDummyHands';
 
 export default function ResultPage() {
-  const { session, sessionReady, hands, settings, updateSettings, saveHand, deleteHand } = useApp();
+  const { session, sessionReady, hands, handCounter, saveHand, deleteHand, incrementHandCounter } = useApp();
   const navigate = useNavigate();
 
   // セッション未設定ならSetupへ
@@ -14,16 +15,31 @@ export default function ResultPage() {
 
   if (!sessionReady) return null;
 
+  const handleAddDummy = () => {
+    const dummies = generateDummyHands(session, handCounter, 10);
+    dummies.forEach((h) => {
+      saveHand(h);
+      incrementHandCounter();
+    });
+  };
+
   return (
-    <HandReview
-      hands={hands}
-      session={session}
-      settings={settings}
-      onNewHand={() => navigate('/hand')}
-      onEditSettings={() => navigate('/setup')}
-      onUpdateSettings={updateSettings}
-      onDeleteHand={deleteHand}
-      onUpdateHand={saveHand}
-    />
+    <>
+      <HandReview
+        hands={hands}
+        session={session}
+        onNewHand={() => navigate('/hand')}
+        onEditSettings={() => navigate('/setup')}
+        onDeleteHand={deleteHand}
+        onUpdateHand={saveHand}
+      />
+      {import.meta.env.DEV && (
+        <div className="dev-toolbar">
+          <button type="button" className="btn-dev" onClick={handleAddDummy}>
+            🧪 ダミーデータ10件追加
+          </button>
+        </div>
+      )}
+    </>
   );
 }

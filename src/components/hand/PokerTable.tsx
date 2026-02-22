@@ -298,7 +298,7 @@ export default function PokerTable({ players, state, actorId, heroId }: Props) {
 
           return (
             <g key={player.id} transform={`translate(${pos.x.toFixed(2)}, ${pos.y.toFixed(2)})`}>
-              {isActor && !isDealerSeat && (
+              {isActor && (
                 <circle r={nodeR + 6} fill="none" stroke="#60a5fa"
                   strokeWidth="2" opacity="0.5" className="actor-pulse" />
               )}

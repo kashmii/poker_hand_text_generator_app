@@ -261,20 +261,28 @@ export default function HandInput({ session, handNumber, onSave, onCancel, onUpd
           <div className="hero-position-panel">
             <div className="board-input__title">自分のポジションを選択</div>
             <div className="hero-position-btns">
-              {posLabels.map((label) => (
-                <button
-                  key={label}
-                  type="button"
-                  className="hero-pos-btn"
-                  onClick={() => {
-                    const newHeroIdx = posLabels.indexOf(label);
-                    const newHeroId = players[newHeroIdx]?.id ?? players[0].id;
-                    onUpdateSession({ heroPosition: label, heroId: newHeroId });
-                  }}
-                >
-                  {label}
-                </button>
-              ))}
+              {/* 表示順: BB, SB, BTN, CO, HJ, MP, UTG+2, UTG+1, UTG（直感的な選びやすい順） */}
+              {(() => {
+                const displayOrder = ['BB', 'SB', 'BTN', 'SB/BTN', 'CO', 'HJ', 'MP', 'UTG+2', 'UTG+1', 'UTG'];
+                const sorted = [
+                  ...displayOrder.filter((l) => posLabels.includes(l)),
+                  ...posLabels.filter((l) => !displayOrder.includes(l)),
+                ];
+                return sorted.map((label) => (
+                  <button
+                    key={label}
+                    type="button"
+                    className="hero-pos-btn"
+                    onClick={() => {
+                      const newHeroIdx = posLabels.indexOf(label);
+                      const newHeroId = players[newHeroIdx]?.id ?? players[0].id;
+                      onUpdateSession({ heroPosition: label, heroId: newHeroId });
+                    }}
+                  >
+                    {label}
+                  </button>
+                ));
+              })()}
             </div>
           </div>
 

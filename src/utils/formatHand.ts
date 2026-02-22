@@ -4,7 +4,6 @@ import type {
   Action,
   Card,
   ShowdownEntry,
-  OutputLanguage,
 } from '../types/poker';
 
 // ========== カード表示 ==========
@@ -47,7 +46,6 @@ function formatAction(
   action: Action,
   posLabel: string,
   currency: string,
-  _lang: OutputLanguage,
 ): string {
   const c = currency;
   switch (action.type) {
@@ -74,7 +72,6 @@ function formatAction(
 export function generateHandText(
   hand: HandData,
   session: SessionConfig,
-  lang: OutputLanguage = 'en',
 ): string {
   const { players, smallBlind, bigBlind, ante, currency, heroId } = session;
   const totalPlayers = players.length;
@@ -126,7 +123,7 @@ export function generateHandText(
   );
   hand.streets.preflop.actions.forEach((a) => {
     const posLabel = posLabelMap[a.playerId] ?? '';
-    const line = formatAction(a, posLabel, c, lang);
+    const line = formatAction(a, posLabel, c);
     if (line) lines.push(line);
   });
 
@@ -149,7 +146,7 @@ export function generateHandText(
     lines.push(`Flop (Pot size: ${preflopPot.toLocaleString()}) ${boardStr}`);
     hand.streets.flop.actions.forEach((a) => {
       const posLabel = posLabelMap[a.playerId] ?? '';
-      const line = formatAction(a, posLabel, c, lang);
+      const line = formatAction(a, posLabel, c);
       if (line) lines.push(line);
     });
   }
@@ -164,7 +161,7 @@ export function generateHandText(
     lines.push(`Turn (Pot size: ${turnPot.toLocaleString()}) ${boardStr}`);
     hand.streets.turn.actions.forEach((a) => {
       const posLabel = posLabelMap[a.playerId] ?? '';
-      const line = formatAction(a, posLabel, c, lang);
+      const line = formatAction(a, posLabel, c);
       if (line) lines.push(line);
     });
   }
@@ -185,7 +182,7 @@ export function generateHandText(
     lines.push(`River (Pot size: ${riverPot.toLocaleString()}) ${boardStr}`);
     hand.streets.river.actions.forEach((a) => {
       const posLabel = posLabelMap[a.playerId] ?? '';
-      const line = formatAction(a, posLabel, c, lang);
+      const line = formatAction(a, posLabel, c);
       if (line) lines.push(line);
     });
   }

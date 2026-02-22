@@ -30,11 +30,11 @@ export default function HandReview({
   const selectedHand = hands.find((h) => h.id === selectedHandId) ?? null;
 
   const handText = selectedHand
-    ? generateHandText(selectedHand, buildSessionWithCards(selectedHand, session), 'en')
+    ? generateHandText(selectedHand, buildSessionWithCards(selectedHand, session))
     : '';
 
   const allHandsText = hands
-    .map((h) => generateHandText(h, buildSessionWithCards(h, session), 'en'))
+    .map((h) => generateHandText(h, buildSessionWithCards(h, session)))
     .join('\n---\n\n');
 
   const handleCopy = async (text: string, setter: (v: boolean) => void) => {

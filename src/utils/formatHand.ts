@@ -83,10 +83,34 @@ export function generateHandText(
     posLabelMap[p.id] = getPositionLabel(i, totalPlayers);
   });
 
+  // heroのポジションラベル（アクション行で "(hero)" を付加するために使用）
+  const heroPosLabel = heroId ? (posLabelMap[heroId] ?? '') : '';
+
+  /** ポジションラベルにhero識別子を付加するヘルパー */
+  const posLabelWithHero = (playerId: string): string => {
+    const label = posLabelMap[playerId] ?? '';
+    return playerId === heroId ? `${label} (hero)` : label;
+  };
+
+  /** ストリート開始時点のfold済みプレイヤーIDセットを計算する */
+  const foldedBeforeStreet = (upTo: 'preflop' | 'flop' | 'turn' | 'river'): Set<string> => {
+    const folded = new Set<string>();
+    const order = ['preflop', 'flop', 'turn', 'river'] as const;
+    const upToIdx = order.indexOf(upTo);
+    for (let si = 0; si < upToIdx; si++) {
+      const s = order[si];
+      const actions = s === 'preflop'
+        ? hand.streets.preflop.actions
+        : (hand.streets[s]?.actions ?? []);
+      actions.forEach((a) => { if (a.type === 'fold') folded.add(a.playerId); });
+    }
+    return folded;
+  };
+
   const lines: string[] = [];
 
   // --- ヘッダー ---
-  lines.push(`${hand.id ? session.date : session.date}`);
+  lines.push(session.date);
   if (hand.title) {
     lines.push(hand.title);
   }
@@ -94,59 +118,54 @@ export function generateHandText(
   lines.push(`${c}${smallBlind}/${bigBlind} - ${totalPlayers} players`);
   lines.push('');
 
-  // --- Setup: heroのホールカードのみ表示 ---
+  // --- Setup: heroのホールカードとポジションを表示 ---
   const hero = players.find((p) => p.id === heroId);
-  if (hero?.holeCards) {
-    const posLabel = posLabelMap[hero.id] ?? '';
+  const heroHoleCards = hero?.holeCards ?? hand.heroHoleCards;
+  if (heroPosLabel) {
     lines.push('Setup');
-    lines.push(`${posLabel} [${formatCardsSpaced(hero.holeCards)}]`);
+    if (heroHoleCards) {
+      lines.push(`${heroPosLabel} (hero) [${formatCardsSpaced(heroHoleCards)}]`);
+    } else {
+      lines.push(`${heroPosLabel} (hero)`);
+    }
     lines.push('');
   }
 
   // --- プリフロップ ---
-  // ポットサイズ: プリフロップ開始時は 0（ブラインドはポスト行で表現）
-  lines.push(`Preflop (Pot size: 0)`);
+  // プリフロップ開始時は全員参加
+  lines.push(`Preflop (${totalPlayers} players, Pot size: 0)`);
   // SB/BBのポスト
   const sbPlayer = players[1] ?? players[0];
   const bbPlayer = players[2] ?? players[1];
   // BBアンティはBBのみが払う（Big Blind Ante）
   if (ante > 0) {
     lines.push(
-      `${posLabelMap[bbPlayer.id] ?? 'BB'} posts big blind ante ${c}${ante.toLocaleString()}`,
+      `${posLabelWithHero(bbPlayer.id)} posts big blind ante ${c}${ante.toLocaleString()}`,
     );
   }
   lines.push(
-    `${posLabelMap[sbPlayer.id] ?? 'SB'} posts small blind ${c}${smallBlind.toLocaleString()}`,
+    `${posLabelWithHero(sbPlayer.id)} posts small blind ${c}${smallBlind.toLocaleString()}`,
   );
   lines.push(
-    `${posLabelMap[bbPlayer.id] ?? 'BB'} posts big blind ${c}${bigBlind.toLocaleString()}`,
+    `${posLabelWithHero(bbPlayer.id)} posts big blind ${c}${bigBlind.toLocaleString()}`,
   );
   hand.streets.preflop.actions.forEach((a) => {
-    const posLabel = posLabelMap[a.playerId] ?? '';
-    const line = formatAction(a, posLabel, c);
+    const line = formatAction(a, posLabelWithHero(a.playerId), c);
     if (line) lines.push(line);
   });
 
   // --- フロップ ---
   if (hand.streets.flop) {
-    // フロップ開始時のポット = プリフロップ終了時のポット
-    // pot はハンド全体の最終ポットなのでここでは計算できないが、
-    // シンプルに各ストリート分を積算する
-    const preflopPot = computeStreetPot(
-      hand,
-      'preflop',
-      smallBlind,
-      bigBlind,
-      ante,
-    );
+    const preflopPot = computeStreetPot(hand, 'preflop', smallBlind, bigBlind, ante);
+    const flopFolded = foldedBeforeStreet('flop');
+    const flopPlayers = totalPlayers - flopFolded.size;
     const boardStr = hand.streets.flop.board
       ? `[${formatCardsSpaced(hand.streets.flop.board)}]`
       : '';
     lines.push('');
-    lines.push(`Flop (Pot size: ${preflopPot.toLocaleString()}) ${boardStr}`);
+    lines.push(`Flop (${flopPlayers} players, Pot size: ${preflopPot.toLocaleString()}) ${boardStr}`);
     hand.streets.flop.actions.forEach((a) => {
-      const posLabel = posLabelMap[a.playerId] ?? '';
-      const line = formatAction(a, posLabel, c);
+      const line = formatAction(a, posLabelWithHero(a.playerId), c);
       if (line) lines.push(line);
     });
   }
@@ -154,35 +173,31 @@ export function generateHandText(
   // --- ターン ---
   if (hand.streets.turn) {
     const turnPot = computeStreetPot(hand, 'turn', smallBlind, bigBlind, ante);
+    const turnFolded = foldedBeforeStreet('turn');
+    const turnPlayers = totalPlayers - turnFolded.size;
     const boardStr = hand.streets.turn.board
       ? `[${formatCardsSpaced(hand.streets.turn.board)}]`
       : '';
     lines.push('');
-    lines.push(`Turn (Pot size: ${turnPot.toLocaleString()}) ${boardStr}`);
+    lines.push(`Turn (${turnPlayers} players, Pot size: ${turnPot.toLocaleString()}) ${boardStr}`);
     hand.streets.turn.actions.forEach((a) => {
-      const posLabel = posLabelMap[a.playerId] ?? '';
-      const line = formatAction(a, posLabel, c);
+      const line = formatAction(a, posLabelWithHero(a.playerId), c);
       if (line) lines.push(line);
     });
   }
 
   // --- リバー ---
   if (hand.streets.river) {
-    const riverPot = computeStreetPot(
-      hand,
-      'river',
-      smallBlind,
-      bigBlind,
-      ante,
-    );
+    const riverPot = computeStreetPot(hand, 'river', smallBlind, bigBlind, ante);
+    const riverFolded = foldedBeforeStreet('river');
+    const riverPlayers = totalPlayers - riverFolded.size;
     const boardStr = hand.streets.river.board
       ? `[${formatCardsSpaced(hand.streets.river.board)}]`
       : '';
     lines.push('');
-    lines.push(`River (Pot size: ${riverPot.toLocaleString()}) ${boardStr}`);
+    lines.push(`River (${riverPlayers} players, Pot size: ${riverPot.toLocaleString()}) ${boardStr}`);
     hand.streets.river.actions.forEach((a) => {
-      const posLabel = posLabelMap[a.playerId] ?? '';
-      const line = formatAction(a, posLabel, c);
+      const line = formatAction(a, posLabelWithHero(a.playerId), c);
       if (line) lines.push(line);
     });
   }

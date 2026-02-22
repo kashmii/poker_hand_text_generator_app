@@ -206,6 +206,29 @@ input[type='radio'] {
 .input-small {
   max-width: 100px;
 }
+
+.ante-control {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.ante-toggle {
+  padding: 0.3rem 0.8rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface2);
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+  font-weight: 600;
+  min-width: 52px;
+}
+.ante-toggle--on {
+  border-color: var(--color-primary);
+  background: var(--color-primary);
+  color: #fff;
+}
+
 .input-name {
   max-width: 140px;
 }

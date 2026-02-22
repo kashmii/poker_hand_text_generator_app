@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { BLIND_PRESETS } from './constants';
 
 interface Props {
@@ -17,7 +18,32 @@ export default function BlindSection({
   onBlindPresetChange,
   onAnteChange,
 }: Props) {
+  const [anteOn, setAnteOn] = useState(ante > 0);
+  const [anteInput, setAnteInput] = useState(String(ante > 0 ? ante : ''));
+
   const currentPresets = BLIND_PRESETS[currency] ?? BLIND_PRESETS['$'];
+
+  // BBプリセットが変わったとき、anteOnならデフォルト値をBBに更新
+  useEffect(() => {
+    if (anteOn) {
+      const bb = currentPresets[blindPresetIdx]?.bb ?? 0;
+      setAnteInput(String(bb));
+      onAnteChange(bb);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [blindPresetIdx, currency]);
+
+  const handleAnteToggle = (on: boolean) => {
+    setAnteOn(on);
+    if (on) {
+      const bb = currentPresets[blindPresetIdx]?.bb ?? 0;
+      setAnteInput(String(bb));
+      onAnteChange(bb);
+    } else {
+      setAnteInput('');
+      onAnteChange(0);
+    }
+  };
 
   return (
     <section className="form-section">
@@ -45,23 +71,49 @@ export default function BlindSection({
           className="input-blind"
         >
           {currentPresets.map((p, i) => (
-            <option key={i} value={i}>{p.label}</option>
+            <option key={i} value={i}>
+              {p.label}
+            </option>
           ))}
         </select>
       </div>
 
       <div className="form-row">
-        <label>アンティ <span className="hint">（0=なし）</span></label>
-        <input
-          type="number"
-          min={0}
-          step={0.01}
-          value={ante}
-          onChange={(e) => onAnteChange(Number(e.target.value))}
-          className="input-small"
-        />
+        <label>BBアンティ</label>
+        <div className="ante-control">
+          <button
+            type="button"
+            className={`ante-toggle ${anteOn ? 'ante-toggle--on' : ''}`}
+            onClick={() => handleAnteToggle(!anteOn)}
+          >
+            {anteOn ? 'ON' : 'OFF'}
+          </button>
+          {anteOn && (
+            <input
+              type="number"
+              min={0}
+              step={0.01}
+              value={anteInput}
+              onChange={(e) => {
+                const nextValue = e.target.value;
+                setAnteInput(nextValue);
+                const parsed = Number(nextValue);
+                if (Number.isFinite(parsed) && parsed >= 0) {
+                  onAnteChange(parsed);
+                }
+              }}
+              onBlur={() => {
+                if (anteInput === '') {
+                  const bb = currentPresets[blindPresetIdx]?.bb ?? 0;
+                  setAnteInput(String(bb));
+                  onAnteChange(bb);
+                }
+              }}
+              className="input-small"
+            />
+          )}
+        </div>
       </div>
-
     </section>
   );
 }

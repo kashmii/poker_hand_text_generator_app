@@ -112,11 +112,11 @@ export function generateHandText(
   // SB/BBのポスト
   const sbPlayer = players[1] ?? players[0];
   const bbPlayer = players[2] ?? players[1];
+  // BBアンティはBBのみが払う（Big Blind Ante）
   if (ante > 0) {
-    players.forEach((p) => {
-      const posLabel = posLabelMap[p.id] ?? '';
-      lines.push(`${posLabel} posts ante ${c}${ante.toLocaleString()}`);
-    });
+    lines.push(
+      `${posLabelMap[bbPlayer.id] ?? 'BB'} posts big blind ante ${c}${ante.toLocaleString()}`,
+    );
   }
   lines.push(
     `${posLabelMap[sbPlayer.id] ?? 'SB'} posts small blind ${c}${smallBlind.toLocaleString()}`,

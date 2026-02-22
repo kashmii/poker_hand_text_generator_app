@@ -36,6 +36,7 @@ export default function HandPage() {
       onSave={handleSave}
       onCancel={handleCancel}
       onUpdateSession={updateSession}
+      onViewResult={hands.length > 0 ? () => navigate('/result') : undefined}
     />
   );
 }

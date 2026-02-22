@@ -4,7 +4,7 @@ import SessionSetup from '../components/SessionSetup';
 import type { SessionConfig } from '../types/poker';
 
 export default function SetupPage() {
-  const { startSession } = useApp();
+  const { startSession, hands } = useApp();
   const navigate = useNavigate();
 
   const handleStart = (config: SessionConfig) => {
@@ -12,5 +12,10 @@ export default function SetupPage() {
     navigate('/hand');
   };
 
-  return <SessionSetup onStart={handleStart} />;
+  return (
+    <SessionSetup
+      onStart={handleStart}
+      onViewResult={hands.length > 0 ? () => navigate('/result') : undefined}
+    />
+  );
 }

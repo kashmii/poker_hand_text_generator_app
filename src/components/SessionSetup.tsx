@@ -8,9 +8,10 @@ import HeroSection from './setup/HeroSection';
 
 interface Props {
   onStart: (config: SessionConfig) => void;
+  onViewResult?: () => void;
 }
 
-export default function SessionSetup({ onStart }: Props) {
+export default function SessionSetup({ onStart, onViewResult }: Props) {
   // セッション情報
   const [venueName, setVenueName] = useState('');
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
@@ -65,6 +66,13 @@ export default function SessionSetup({ onStart }: Props) {
   return (
     <div className="session-setup">
       <h1 className="app-title">🃏 Poker Hand Logger</h1>
+      {onViewResult && (
+        <div className="setup-history-bar">
+          <button type="button" className="btn-view-result" onClick={onViewResult}>
+            📋 ハンド履歴を見る
+          </button>
+        </div>
+      )}
       <form onSubmit={handleSubmit} className="setup-form">
 
         {/* セッション情報 */}

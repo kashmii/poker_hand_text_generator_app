@@ -24,6 +24,7 @@ interface Props {
   onSave: (hand: HandData) => void;
   onCancel: () => void;
   onUpdateSession: (patch: Partial<SessionConfig>) => void;
+  onViewResult?: () => void;
 }
 
 function generateId() {
@@ -34,7 +35,7 @@ const STREET_LABELS: Record<string, string> = {
   preflop: 'PREFLOP', flop: 'FLOP', turn: 'TURN', river: 'RIVER',
 };
 
-export default function HandInput({ session, handNumber, onSave, onCancel, onUpdateSession }: Props) {
+export default function HandInput({ session, handNumber, onSave, onCancel, onUpdateSession, onViewResult }: Props) {
   const {
     state,
     actorId,
@@ -228,6 +229,19 @@ export default function HandInput({ session, handNumber, onSave, onCancel, onUpd
         <button type="button" className="btn-back" onClick={onCancel}>← 戻る</button>
         <span className="hand-input-v2__title">Hand #{handNumber}</span>
         <span className="hand-input-v2__street">{STREET_LABELS[state.currentStreet]}</span>
+        {onViewResult && (
+          <button
+            type="button"
+            className="btn-view-result"
+            onClick={() => {
+              if (confirm('入力中のデータは失われますが、ハンド履歴へ移動しますか？')) {
+                onViewResult();
+              }
+            }}
+          >
+            📋
+          </button>
+        )}
       </div>
 
       {/* 上半分: テーブル図 */}

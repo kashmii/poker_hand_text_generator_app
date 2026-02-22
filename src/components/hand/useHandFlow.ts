@@ -437,10 +437,11 @@ export function useHandFlow(session: SessionConfig) {
         } else {
           // call / fold の後:
           if (newClosingPlayerId !== null) {
-            const closingPlayerFolded =
-              type === 'fold' && prev.closingPlayerId !== newClosingPlayerId;
-            if (closingPlayerFolded) {
-              streetOver = lappedEnd && allSquared;
+            const closingPlayerDidFold =
+              type === 'fold' && prev.closingPlayerId === actorId;
+            if (closingPlayerDidFold) {
+              // closingPlayer自身がfoldした → 残り全員揃っていれば即終了
+              streetOver = allSquared;
             } else {
               streetOver = actorId === newClosingPlayerId && allSquared;
             }

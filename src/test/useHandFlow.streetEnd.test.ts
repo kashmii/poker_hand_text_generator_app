@@ -533,6 +533,81 @@ describe('useHandFlow: ストリート終了ロジック', () => {
       expect(result.current.state.currentStreet).toBe('turn');
     });
 
+    it('【回帰】4way: フロップBBベット→UTGコール→SBコール→BTNフォールド(closing)でターンへ遷移する', () => {
+      // 再現シナリオ:
+      // プリフロップ4人参加（BTN不参加でfold済み）
+      // postflopOrder = [SB, BB, UTG] (BTNはプリフロップでfold済み)
+      // BB bet → closing=UTG（BBの1つ前）
+      // UTG call → SB call → UTG(closing)にまたアクションが求められてしまうバグ
+      // 正しくは: SBがclosingPlayer(UTG)のコール後、UTGがclosing自身のfoldで即終了すべき
+      //
+      // ※ 実際のバグシナリオに合わせる:
+      // postflopOrder = [SB, BB, UTG]
+      // SB call → BB bet → UTG call → SB fold(closing=UTG) → UTGに再度アクションが来るバグ
+      // 修正後: SB(closing=UTGの前)がfoldした際にclosingがUTGのままで、
+      //         UTGがclosingなのにUTGにアクションが来るバグを解消
+      //
+      // より直接的なシナリオ: closingPlayer自身がfoldするケース
+      // postflopOrder = [SB, BB, UTG]
+      // BB bet(20) → closing=SB(BBの1つ前) → UTG call → SB fold(closing自身) → streetOver!
+      const { result } = renderHook(() => useHandFlow(makeSession4way()));
+      skipHoleCards(result);
+
+      // プリフロップ: BTNfold、他はcall/check
+      act(() => { result.current.commitAction('fold'); });  // UTG fold... ではなくBTNがpreflopOrderの最初
+      // preflopOrder4way = [UTG, BTN, SB, BB]
+      // BTNをfoldさせたいので順番に従う
+      // UTG call
+      act(() => { result.current.commitAction('call'); });   // BTN call
+      act(() => { result.current.commitAction('call'); });   // SB call
+      act(() => { result.current.commitAction('check'); });  // BB check → board-input
+      act(() => { result.current.confirmBoard(); });
+
+      // フロップ: postflopOrder = [SB, BB, UTG] (BTNはfold済み... ではなくUTGがfold済み)
+      // ここでUTGがfold済みなのでpostflopOrder = [SB, BB, BTN]
+      // 改めてシナリオを整理:
+      // フロップ postflopOrder = [SB, BB, BTN]（UTGはpreflopでfold、BTNは残っている）
+      // SB call(0) → BB bet(20) → closing=SB(BBの1つ前) → BTN call → SB fold(closing自身) → streetOver!
+      act(() => { result.current.commitAction('check'); });     // SB check
+      act(() => { result.current.commitAction('bet', 20); });   // BB bet → closing=SB
+      act(() => { result.current.commitAction('call'); });       // BTN call
+      act(() => { result.current.commitAction('fold'); });       // SB fold(closing自身) → streetOver!
+
+      expect(result.current.state.phase).toBe('board-input');
+      expect(result.current.state.currentStreet).toBe('turn');
+    });
+
+    it('【回帰】報告バグ再現: 4way フロップ SBコール→BBベット→UTGコール→SBコール後にBBにアクション不要', () => {
+      // 報告されたバグ: プリフロップ4人参加・BTN不参加、フロップで
+      // 1人目(SB)コール→2人目(BB)bet→3人目(UTG)コール→4人目(BTN)コール→1人目(SB)foldにした後
+      // 2人目(BB)に再度アクションが求められた
+      // postflopOrder = [SB, BB, UTG, BTN]（全員フロップ参加）
+      // SB call → BB bet → closing=SB(BBの1つ前) → UTG call → BTN call → SB fold(closing自身) → streetOver!
+      const { result } = renderHook(() => useHandFlow(makeSession4way()));
+      skipHoleCards(result);
+
+      // プリフロップ: 全員コール
+      act(() => { result.current.commitAction('call'); });   // UTG call
+      act(() => { result.current.commitAction('call'); });   // BTN call
+      act(() => { result.current.commitAction('call'); });   // SB call
+      act(() => { result.current.commitAction('check'); });  // BB check → board-input
+      act(() => { result.current.confirmBoard(); });
+
+      // フロップ: postflopOrder = [SB, BB, UTG, BTN]
+      act(() => { result.current.commitAction('call'); });       // SB check(=call 0)
+      act(() => { result.current.commitAction('bet', 20); });    // BB bet → closing=SB
+
+      expect(result.current.state.closingPlayerId).toBe('sb');
+
+      act(() => { result.current.commitAction('call'); });       // UTG call
+      act(() => { result.current.commitAction('call'); });       // BTN call
+      act(() => { result.current.commitAction('fold'); });       // SB fold(closing自身) → streetOver!
+
+      // BBに再度アクションが求められてはいけない
+      expect(result.current.state.phase).toBe('board-input');
+      expect(result.current.state.currentStreet).toBe('turn');
+    });
+
   });
 
 });

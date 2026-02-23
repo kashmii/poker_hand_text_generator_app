@@ -184,22 +184,22 @@ export default function PokerTable({ players, state, actorId, heroId }: Props) {
           strokeWidth="1.5" />
 
         {/* ===== センター情報 ===== */}
-        <text x="0" y="-9" textAnchor="middle"
-          fontSize="6.5" fill="rgba(255,255,255,0.55)" fontWeight="bold" letterSpacing="1.5">
+        <text x="0" y="-14" textAnchor="middle"
+          fontSize="8" fill="rgba(255,255,255,0.55)" fontWeight="bold" letterSpacing="1.5">
           POT
         </text>
-        <text x="0" y="3" textAnchor="middle"
-          fontSize="11" fill="#ffd700" fontWeight="bold">
+        <text x="0" y="-1" textAnchor="middle"
+          fontSize="15" fill="#ffd700" fontWeight="bold">
           {pot.toLocaleString()}
         </text>
-        <text x="0" y="13" textAnchor="middle"
-          fontSize="5.5" fill="#86efac" letterSpacing="1.5">
+        <text x="0" y="12" textAnchor="middle"
+          fontSize="6.5" fill="#86efac" letterSpacing="1.5">
           {streetLabel[currentStreet]}
         </text>
 
         {/* ボードカード: 常に5枚スロット表示 */}
         {(() => {
-          const cardW = 18; const cardH = 23; const gap = 3;
+          const cardW = 22; const cardH = 28; const gap = 3;
           const totalW = 5 * cardW + 4 * gap;
           const startX = -totalW / 2;
           // どのカードが公開済みか
@@ -229,12 +229,12 @@ export default function PokerTable({ players, state, actorId, heroId }: Props) {
                   <g key={i}>
                     {showDivider && (
                       <line
-                        x1={x - cardW / 2 - gap / 2} y1={15}
-                        x2={x - cardW / 2 - gap / 2} y2={15 + cardH}
+                        x1={x - cardW / 2 - gap / 2} y1={18}
+                        x2={x - cardW / 2 - gap / 2} y2={18 + cardH}
                         stroke="rgba(255,255,255,0.15)" strokeWidth="0.8"
                       />
                     )}
-                    <g transform={`translate(${x}, ${15 + cardH / 2})`}>
+                    <g transform={`translate(${x}, ${18 + cardH / 2})`}>
                       <rect
                         x={-cardW / 2} y={-cardH / 2}
                         width={cardW} height={cardH}
@@ -244,20 +244,20 @@ export default function PokerTable({ players, state, actorId, heroId }: Props) {
                         strokeWidth="0.8"
                       />
                       {active && card ? (
-                        <text x="0" y="5.5" textAnchor="middle"
-                          fontSize="10" fill={color} fontWeight="bold">
+                        <text x="0" y="6" textAnchor="middle"
+                          fontSize="13" fill={color} fontWeight="bold">
                           {cardLabel(card)}
                         </text>
                       ) : active && !card ? (
                         // 入力待ち（通常は起きないが念のため）
-                        <text x="0" y="5.5" textAnchor="middle"
-                          fontSize="9" fill="rgba(255,255,255,0.3)">?</text>
+                        <text x="0" y="6" textAnchor="middle"
+                          fontSize="11" fill="rgba(255,255,255,0.3)">?</text>
                       ) : (
                         // 未公開スロット
                         <>
-                          <rect x={-5} y={-6} width={10} height={5} rx="1"
+                          <rect x={-6} y={-7} width={12} height={6} rx="1"
                             fill="rgba(255,255,255,0.08)" />
-                          <rect x={-5} y={1} width={10} height={5} rx="1"
+                          <rect x={-6} y={1} width={12} height={6} rx="1"
                             fill="rgba(255,255,255,0.08)" />
                         </>
                       )}
@@ -279,19 +279,17 @@ export default function PokerTable({ players, state, actorId, heroId }: Props) {
           const isHero   = player.id === heroId;
           const actionText = currentActions[player.id] ?? '';
           const contrib = contributions[player.id] ?? 0;
-          const showContrib = contrib > 0 && !isFolded;
+          const showContrib = contrib > 0;
           const isDealerSeat = is9Max && i === 0;
           const nodeR = 19;
 
-          const bgColor = isDealerSeat
-            ? 'rgba(15,15,25,0.55)'
-            : isFolded ? '#2a3244'
+          const bgColor = isFolded ? '#2a3244'
             : isAllIn  ? '#3d1030'
             : isActor  ? '#1535b8'
+            : isDealerSeat ? '#0f0f19'
             : '#18253a';
-          const strokeColor = isDealerSeat
-            ? 'rgba(200,160,60,0.55)'
-            : isActor  ? '#60a5fa'
+          const strokeColor = isActor  ? '#60a5fa'
+            : isDealerSeat ? '#c8a030'
             : isAllIn  ? '#f0abfc'
             : isHero   ? '#a78bfa'
             : '#3a4f6a';
@@ -305,76 +303,74 @@ export default function PokerTable({ players, state, actorId, heroId }: Props) {
 
               <circle r={nodeR} fill={bgColor} stroke={strokeColor} strokeWidth="1.5" />
 
+              {showContrib && (() => {
+                // テーブル中心方向（内向き）に配置
+                const len = Math.sqrt(pos.x * pos.x + pos.y * pos.y) || 1;
+                const nx = -pos.x / len;
+                const ny = -pos.y / len;
+                const dist = nodeR + 14;
+                const bx = nx * dist;
+                const by = ny * dist;
+                const label = contrib.toLocaleString();
+                // 縦固定・横は文字数に応じて伸びる楕円
+                const chipRY = 8;  // 縦半径（固定）
+                const chipRX = Math.max(label.length * 3.2 + 1, 9); // 横半径
+                return (
+                  <g transform={`translate(${bx.toFixed(2)}, ${by.toFixed(2)})`}>
+                    {/* 楕円本体 */}
+                    <ellipse rx={chipRX} ry={chipRY} fill="#1a0a00" stroke="#e8b84b" strokeWidth="1.8" />
+                    {/* 金額テキスト */}
+                    <text x="0" y="2.8" textAnchor="middle"
+                      fontSize="7" fill="#ffd700" fontWeight="bold">
+                      {label}
+                    </text>
+                  </g>
+                );
+              })()}
+
               {isDealerSeat ? (
-                <text x="0" y="3.5" textAnchor="middle"
+                <text x="0" y="-3.5" textAnchor="middle"
                   fontSize="7.5" fill="rgba(200,160,60,0.8)" fontWeight="bold">
                   BTN
                 </text>
               ) : (
-                <>
-                  {showContrib && (() => {
-                    // テーブル中心方向（内向き）に配置
-                    const len = Math.sqrt(pos.x * pos.x + pos.y * pos.y) || 1;
-                    const nx = -pos.x / len;
-                    const ny = -pos.y / len;
-                    const dist = nodeR + 14;
-                    const bx = nx * dist;
-                    const by = ny * dist;
-                    const label = contrib.toLocaleString();
-                    // 縦固定・横は文字数に応じて伸びる楕円
-                    const chipRY = 8;  // 縦半径（固定）
-                    const chipRX = Math.max(label.length * 3.2 + 1, 9); // 横半径
+                <text x="0" y="-3.5" textAnchor="middle"
+                  fontSize="8" fill={isHero ? '#c4b5fd' : '#8ea8c8'} fontWeight="bold">
+                  {posLabel}
+                </text>
+              )}
+
+              <text x="0" y="8" textAnchor="middle"
+                fontSize="7"
+                fill={isFolded ? '#5a6580' : isAllIn ? '#f0abfc' : '#fbbf24'}
+                fontWeight="bold">
+                {isFolded ? 'FOLD' : isAllIn ? 'ALL-IN' : actionText}
+              </text>
+
+              {isHero && hasHoleCards && !isFolded && (
+                <g transform={`translate(0, ${nodeR + 4})`}>
+                  {holeCards!.map((card, ci) => {
+                    const cx = ci === 0 ? -14 : 14;
+                    const color = SUIT_COLORS[card.suit] ?? '#333';
                     return (
-                      <g transform={`translate(${bx.toFixed(2)}, ${by.toFixed(2)})`}>
-                        {/* 楕円本体 */}
-                        <ellipse rx={chipRX} ry={chipRY} fill="#1a0a00" stroke="#e8b84b" strokeWidth="1.8" />
-                        {/* 金額テキスト */}
-                        <text x="0" y="2.8" textAnchor="middle"
-                          fontSize="7" fill="#ffd700" fontWeight="bold">
-                          {label}
+                      <g key={ci} transform={`translate(${cx}, 0)`}>
+                        <rect x="-11" y="0" width="22" height="28"
+                          rx="2.5" fill="#fff" stroke="#bbb" strokeWidth="0.8" />
+                        <text x="0" y="20" textAnchor="middle"
+                          fontSize="14" fill={color} fontWeight="bold">
+                          {cardLabel(card)}
                         </text>
                       </g>
                     );
-                  })()}
+                  })}
+                </g>
+              )}
 
-                  <text x="0" y="-3.5" textAnchor="middle"
-                    fontSize="8" fill={isHero ? '#c4b5fd' : '#8ea8c8'} fontWeight="bold">
-                    {posLabel}
-                  </text>
-
-                  <text x="0" y="8" textAnchor="middle"
-                    fontSize="7"
-                    fill={isFolded ? '#5a6580' : isAllIn ? '#f0abfc' : '#fbbf24'}
-                    fontWeight="bold">
-                    {isFolded ? 'FOLD' : isAllIn ? 'ALL-IN' : actionText}
-                  </text>
-
-                  {isHero && hasHoleCards && !isFolded && (
-                    <g transform={`translate(0, ${nodeR + 3})`}>
-                      {holeCards!.map((card, ci) => {
-                        const cx = ci === 0 ? -11 : 11;
-                        const color = SUIT_COLORS[card.suit] ?? '#333';
-                        return (
-                          <g key={ci} transform={`translate(${cx}, 0)`}>
-                            <rect x="-9" y="0" width="18" height="23"
-                              rx="2.5" fill="#fff" stroke="#bbb" strokeWidth="0.8" />
-                            <text x="0" y="16" textAnchor="middle"
-                              fontSize="11" fill={color} fontWeight="bold">
-                              {cardLabel(card)}
-                            </text>
-                          </g>
-                        );
-                      })}
-                    </g>
-                  )}
-
-                  {isHero && !hasHoleCards && !isFolded && (
-                    <text x="0" y={nodeR + 11} textAnchor="middle"
-                      fontSize="6.5" fill="#a78bfa">
-                      HERO
-                    </text>
-                  )}
-                </>
+              {isHero && !hasHoleCards && !isFolded && (
+                <text x="0" y={nodeR + 11} textAnchor="middle"
+                  fontSize="6.5" fill="#a78bfa">
+                  HERO
+                </text>
               )}
             </g>
           );

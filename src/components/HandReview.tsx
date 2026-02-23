@@ -19,19 +19,13 @@ export default function HandReview({
   onDeleteHand,
   onUpdateHand,
 }: Props) {
-  const [selectedHandId, setSelectedHandId] = useState<string | null>(
+  const [openHandId, setOpenHandId] = useState<string | null>(
     hands.length > 0 ? hands[hands.length - 1].id : null
   );
   const [copied, setCopied] = useState(false);
   const [allCopied, setAllCopied] = useState(false);
   const [editingTitleId, setEditingTitleId] = useState<string | null>(null);
   const [editingTitleValue, setEditingTitleValue] = useState('');
-
-  const selectedHand = hands.find((h) => h.id === selectedHandId) ?? null;
-
-  const handText = selectedHand
-    ? generateHandText(selectedHand, buildSessionWithCards(selectedHand, session))
-    : '';
 
   const allHandsText = hands
     .map((h) => generateHandText(h, buildSessionWithCards(h, session)))
@@ -43,7 +37,6 @@ export default function HandReview({
       setter(true);
       setTimeout(() => setter(false), 2000);
     } catch {
-      // フォールバック
       const el = document.createElement('textarea');
       el.value = text;
       document.body.appendChild(el);
@@ -53,6 +46,11 @@ export default function HandReview({
       setter(true);
       setTimeout(() => setter(false), 2000);
     }
+  };
+
+  const toggleOpen = (id: string) => {
+    setOpenHandId((prev) => (prev === id ? null : id));
+    setCopied(false);
   };
 
   return (
@@ -78,89 +76,119 @@ export default function HandReview({
         </div>
       ) : (
         <>
-          {/* ハンド一覧 */}
-          <div className="hand-list">
-            {hands.map((h) => (
-              <div
-                key={h.id}
-                className={`hand-list-item ${selectedHandId === h.id ? 'hand-list-item--active' : ''}`}
-                onClick={() => setSelectedHandId(h.id)}
-              >
-                <div className="hand-list-item__info">
-                  <span className="hand-num">Hand #{h.handNumber}</span>
-                  <span className="hand-streets">
-                    {h.streets.flop ? (h.streets.turn ? (h.streets.river ? 'River' : 'Turn') : 'Flop') : 'Preflop'}
-                  </span>
-                </div>
-                {editingTitleId === h.id ? (
-                  <input
-                    type="text"
-                    className="hand-title-input"
-                    value={editingTitleValue}
-                    maxLength={20}
-                    autoFocus
-                    onClick={(e) => e.stopPropagation()}
-                    onChange={(e) => setEditingTitleValue(e.target.value)}
-                    onBlur={() => {
-                      onUpdateHand({ ...h, title: editingTitleValue.trim() || undefined });
-                      setEditingTitleId(null);
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        onUpdateHand({ ...h, title: editingTitleValue.trim() || undefined });
-                        setEditingTitleId(null);
-                      } else if (e.key === 'Escape') {
-                        setEditingTitleId(null);
-                      }
-                    }}
-                  />
-                ) : (
-                  <span
-                    className="hand-title"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setEditingTitleId(h.id);
-                      setEditingTitleValue(h.title ?? '');
-                    }}
-                  >
-                    {h.title || <span className="hand-title--placeholder">タイトルを追加</span>}
-                  </span>
-                )}
-                <button
-                  type="button"
-                  className="btn-delete"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (confirm(`Hand #${h.handNumber} を削除しますか？`)) {
-                      onDeleteHand(h.id);
-                      if (selectedHandId === h.id) setSelectedHandId(null);
-                    }
-                  }}
+          <div className="hand-accordion">
+            {hands.map((h) => {
+              const isOpen = openHandId === h.id;
+              const streetLabel = h.streets.flop
+                ? h.streets.turn
+                  ? h.streets.river ? 'River' : 'Turn'
+                  : 'Flop'
+                : 'Preflop';
+              const handText = isOpen
+                ? generateHandText(h, buildSessionWithCards(h, session))
+                : '';
+
+              return (
+                <div
+                  key={h.id}
+                  className={`accordion-item ${isOpen ? 'accordion-item--open' : ''}`}
                 >
-                  🗑
-                </button>
-              </div>
-            ))}
+                  {/* ヘッダー行（クリックで開閉） */}
+                  <div className="accordion-header" onClick={() => toggleOpen(h.id)}>
+                    <div className="accordion-header__left">
+                      <span className="hand-num">#{h.handNumber}</span>
+                      <span className="hand-streets">{streetLabel}</span>
+                    </div>
+
+                    {/* タイトル（クリックはアコーディオン開閉、編集は✎ボタンから） */}
+                    <div className="accordion-header__title">
+                      {editingTitleId === h.id ? (
+                        <div onClick={(e) => e.stopPropagation()} style={{ flex: 1, minWidth: 0 }}>
+                          <input
+                            type="text"
+                            className="hand-title-input"
+                            value={editingTitleValue}
+                            maxLength={20}
+                            autoFocus
+                            onChange={(e) => setEditingTitleValue(e.target.value)}
+                            onBlur={() => {
+                              onUpdateHand({ ...h, title: editingTitleValue.trim() || undefined });
+                              setEditingTitleId(null);
+                            }}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                onUpdateHand({ ...h, title: editingTitleValue.trim() || undefined });
+                                setEditingTitleId(null);
+                              } else if (e.key === 'Escape') {
+                                setEditingTitleId(null);
+                              }
+                            }}
+                          />
+                        </div>
+                      ) : (
+                        <>
+                          <span className="hand-title">
+                            {h.title || <span className="hand-title--placeholder">タイトルを追加</span>}
+                          </span>
+                          <button
+                            type="button"
+                            className="btn-title-edit"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setEditingTitleId(h.id);
+                              setEditingTitleValue(h.title ?? '');
+                            }}
+                            title="タイトルを編集"
+                          >
+                            ✎
+                          </button>
+                        </>
+                      )}
+                    </div>
+
+                    {/* 削除ボタン */}
+                    <div className="accordion-header__actions">
+                      <button
+                        type="button"
+                        className="btn-delete"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (confirm(`Hand #${h.handNumber} を削除しますか？`)) {
+                            onDeleteHand(h.id);
+                            if (openHandId === h.id) setOpenHandId(null);
+                          }
+                        }}
+                      >
+                        🗑
+                      </button>
+                    </div>
+
+                    <span className="accordion-chevron" aria-hidden="true">
+                      {isOpen ? '▲' : '▼'}
+                    </span>
+                  </div>
+
+                  {/* 展開コンテンツ */}
+                  {isOpen && (
+                    <div className="accordion-content">
+                      <div className="output-header">
+                        <button
+                          type="button"
+                          className={`btn-copy ${copied ? 'btn-copy--done' : ''}`}
+                          onClick={() => handleCopy(handText, setCopied)}
+                        >
+                          {copied ? '✓ コピー済み' : 'コピー'}
+                        </button>
+                      </div>
+                      <pre className="output-text">{handText}</pre>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
 
-          {/* 選択ハンドのテキスト出力 */}
-          {selectedHand && (
-            <div className="output-section">
-              <div className="output-header">
-                <span>Hand #{selectedHand.handNumber}</span>
-                <button
-                  type="button"
-                  className={`btn-copy ${copied ? 'btn-copy--done' : ''}`}
-                  onClick={() => handleCopy(handText, setCopied)}
-                >
-                  {copied ? '✓ コピー済み' : 'コピー'}
-                </button>
-              </div>
-              <pre className="output-text">{handText}</pre>
-            </div>
-          )}
-
-          {/* 全ハンドコピー */}
+          {/* 全ハンドまとめてコピー */}
           {hands.length > 1 && (
             <div className="all-copy-section">
               <button

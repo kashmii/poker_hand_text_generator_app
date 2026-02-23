@@ -810,33 +810,61 @@ input[type='radio'] {
   align-items: center;
 }
 
-/* ===== HAND LIST ===== */
-.hand-list {
+/* ===== ACCORDION (Hand list) ===== */
+.hand-accordion {
   border-bottom: 1px solid var(--color-border);
 }
 
-.hand-list-item {
+.accordion-item {
+  border-bottom: 1px solid var(--color-border);
+}
+
+.accordion-header {
   display: flex;
   align-items: center;
   gap: 0.5rem;
   padding: 0.75rem 1rem;
-  border-bottom: 1px solid var(--color-border);
   cursor: pointer;
-  transition: background 0.1s;
-}
-.hand-list-item:hover {
   background: var(--color-surface);
+  transition: background 0.1s;
+  user-select: none;
+  -webkit-user-select: none;
 }
-.hand-list-item--active {
+.accordion-header:hover {
+  background: var(--color-surface2);
+}
+.accordion-item--open .accordion-header {
   background: #1e3a5f;
-  border-left: 3px solid var(--color-primary);
+  border-bottom: 1px solid var(--color-border);
 }
 
-.hand-list-item__info {
+.accordion-header__left {
   display: flex;
   align-items: center;
   gap: 0.5rem;
   flex-shrink: 0;
+}
+
+.accordion-header__title {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.accordion-header__actions {
+  flex-shrink: 0;
+}
+
+.accordion-chevron {
+  font-size: 0.65rem;
+  color: var(--color-text-muted);
+  flex-shrink: 0;
+}
+
+.accordion-content {
+  background: var(--color-surface);
 }
 
 .hand-num {
@@ -855,7 +883,6 @@ input[type='radio'] {
   flex: 1;
   font-size: 0.85rem;
   color: var(--color-text-muted);
-  cursor: text;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -863,18 +890,34 @@ input[type='radio'] {
   padding: 0.1rem 0.3rem;
   border-radius: var(--radius-sm);
 }
-.hand-title:hover {
-  background: var(--color-surface2);
-  color: var(--color-text);
-}
 
 .hand-title--placeholder {
   opacity: 0.4;
   font-style: italic;
 }
 
+.btn-title-edit {
+  flex-shrink: 0;
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+  padding: 0.1rem 0.3rem;
+  border-radius: var(--radius-sm);
+  opacity: 0;
+  transition: opacity 0.15s, color 0.15s;
+}
+.accordion-header:hover .btn-title-edit,
+.accordion-item--open .btn-title-edit {
+  opacity: 0.6;
+}
+.btn-title-edit:hover {
+  opacity: 1 !important;
+  color: var(--color-text);
+  background: var(--color-surface2);
+}
+
 .hand-title-input {
-  flex: 1;
+  width: 100%;
   font-size: 0.85rem;
   background: var(--color-surface2);
   border: 1px solid var(--color-primary);

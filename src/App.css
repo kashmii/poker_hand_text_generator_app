@@ -1343,6 +1343,10 @@ input[type='radio'] {
   font-weight: 800;
   letter-spacing: 0.04em;
 }
+.numpad-allin:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
 
 .numpad-confirm {
   width: 100%;

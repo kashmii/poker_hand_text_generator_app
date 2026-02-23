@@ -133,10 +133,11 @@ export default function ActionPanel({
             <button
               type="button"
               className="action-btn action-btn--allin numpad-allin"
+              disabled={!amountStr || Number(amountStr) <= 0}
               onClick={() => {
                 const inputAmount = Number(amountStr);
-                const allinAmount = inputAmount > 0 ? inputAmount : undefined;
-                onAction('allin', allinAmount);
+                if (inputAmount <= 0) return;
+                onAction('allin', inputAmount);
                 setInputMode('none');
                 setPendingType(null);
                 setAmountStr('');

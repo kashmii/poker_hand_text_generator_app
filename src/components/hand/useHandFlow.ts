@@ -350,6 +350,7 @@ export function useHandFlow(session: SessionConfig) {
           const playerStack = players.find((p) => p.id === actorId)?.stack ?? 0;
           const fallback = playerStack > 0 ? playerStack : prev.currentBet;
           const total = (amount !== undefined && amount > 0) ? amount : fallback;
+          if (total <= 0) return prev; // 0でオールインは不可
           const added = Math.max(0, total - (newContributions[actorId] ?? 0));
           newContributions[actorId] = total;
           if (total > newBet) newBet = total;

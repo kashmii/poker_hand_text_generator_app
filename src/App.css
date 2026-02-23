@@ -1375,6 +1375,30 @@ input[type='radio'] {
   color: var(--color-primary);
 }
 
+/* 開発用: Result画面ショートカットボタン */
+.dev-dummy-btn {
+  position: fixed;
+  bottom: 1rem;
+  right: 1rem;
+  z-index: 9999;
+  background: #1e293b;
+  color: #94a3b8;
+  border: 1px dashed #475569;
+  border-radius: var(--radius-md);
+  padding: 0.5rem 0.85rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  letter-spacing: 0.03em;
+  opacity: 0.8;
+  transition: opacity 0.15s, border-color 0.15s, color 0.15s;
+}
+.dev-dummy-btn:hover {
+  opacity: 1;
+  border-color: #94a3b8;
+  color: #e2e8f0;
+}
+
 /* 開発用ランダム入力ボタン */
 .rndm-btn {
   font-size: 0.65rem;

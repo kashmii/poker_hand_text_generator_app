@@ -35,6 +35,8 @@ interface AppContextValue {
   saveHand: (hand: HandData) => void;
   deleteHand: (id: string) => void;
   incrementHandCounter: () => void;
+  /** DEV専用: セッション設定とハンド履歴を一括ロード */
+  loadDummyData: (session: SessionConfig, hands: HandData[]) => void;
 }
 
 const AppContext = createContext<AppContextValue | null>(null);
@@ -82,6 +84,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setHandCounter((n) => n + 1);
   }, []);
 
+  const loadDummyData = useCallback((dummySession: SessionConfig, dummyHands: HandData[]) => {
+    setSession(dummySession);
+    setHands(dummyHands);
+    setHandCounter(dummyHands.length + 1);
+    setSessionReady(true);
+  }, []);
+
   return (
     <AppContext.Provider
       value={{
@@ -96,6 +105,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         saveHand,
         deleteHand,
         incrementHandCounter,
+        loadDummyData,
       }}
     >
       {children}

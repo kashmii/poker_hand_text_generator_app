@@ -1736,17 +1736,31 @@ input[type='radio'] {
 .winner-btn__pos {
   font-weight: 700;
   font-size: 0.9rem;
-  color: var(--color-primary-light);
-  background: rgba(99, 102, 241, 0.15);
+  color: #e0e7ff;
+  background: rgba(99, 102, 241, 0.35);
   padding: 0.1rem 0.45rem;
   border-radius: var(--radius-sm);
   min-width: 2.5rem;
   text-align: center;
+  flex-shrink: 0;
 }
 
-.winner-btn__name {
-  font-size: 0.95rem;
-  color: var(--color-text);
+.winner-btn__cards {
+  display: flex;
+  gap: 0.3rem;
+  align-items: center;
+}
+
+.winner-btn__card {
+  font-size: 1rem;
+  font-weight: 700;
+  background: #fff;
+  border-radius: 3px;
+  padding: 0.05rem 0.4rem;
+  border: 1px solid #ccc;
+  min-width: 2rem;
+  text-align: center;
+  line-height: 1.4;
 }
 
 .winner-confirm-btn {

@@ -48,7 +48,6 @@ export default function HandInput({ session, handNumber, onSave, onCancel, onUpd
     confirmBoard,
     updateBoard,
     commitShowdown,
-    confirmWinner,
     goBack,
     players,
   } = useHandFlow(session);
@@ -151,7 +150,7 @@ export default function HandInput({ session, handNumber, onSave, onCancel, onUpd
   const actorIdx = players.findIndex((p) => p.id === actorId);
   const actorPositionLabel = actorIdx >= 0 ? posLabels[actorIdx] : '';
 
-  const handleSave = () => {
+  const handleSave = (winnerIdOverride?: string) => {
     const toActions = (arr: RecordedAction[]): Action[] =>
       arr.map((a) => ({ playerId: a.playerId, type: a.type, amount: a.amount }));
 
@@ -164,8 +163,9 @@ export default function HandInput({ session, handNumber, onSave, onCancel, onUpd
       .map((r) => ({ playerId: r.playerId, cards: r.cards! }));
 
     // winner
-    const winnerEntries = state.winnerId
-      ? [{ playerId: state.winnerId, amount: state.pot }]
+    const effectiveWinnerId = winnerIdOverride ?? state.winnerId;
+    const winnerEntries = effectiveWinnerId
+      ? [{ playerId: effectiveWinnerId, amount: state.pot }]
       : [];
 
     const hand: HandData = {
@@ -201,7 +201,6 @@ export default function HandInput({ session, handNumber, onSave, onCancel, onUpd
     onSave(hand);
   };
 
-  const isDone = state.phase === 'done';
   const isBoardInput = state.phase === 'board-input';
   const isHoleCardsPhase = state.phase === 'hole-cards';
   const isShowdown = state.phase === 'showdown';
@@ -419,6 +418,11 @@ export default function HandInput({ session, handNumber, onSave, onCancel, onUpd
               }
               onCommit={commitShowdown}
             />
+            {canGoBack && (
+              <button type="button" className="action-back-btn" onClick={goBack}>
+                ← 1手戻る
+              </button>
+            )}
           </div>
 
         ) : isWinner ? (
@@ -428,22 +432,9 @@ export default function HandInput({ session, handNumber, onSave, onCancel, onUpd
             positionLabels={activePosLabels}
             pot={state.pot}
             currency={session.currency}
-            onConfirm={confirmWinner}
+            showdownRecords={state.showdownRecords}
+            onConfirm={(id) => handleSave(id)}
           />
-
-        ) : isDone ? (
-          /* 完了 */
-          <div className="hand-done">
-            <p className="hand-done__msg">ハンド入力完了</p>
-            <div className="hand-done__actions">
-              <button type="button" className="btn-secondary" onClick={goBack} disabled={!canGoBack}>
-                ← 1手戻る
-              </button>
-              <button type="button" className="btn-primary" onClick={handleSave}>
-                保存 →
-              </button>
-            </div>
-          </div>
 
         ) : isBoardInput ? (
           /* ボード入力 */

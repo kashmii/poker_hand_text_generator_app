@@ -275,6 +275,7 @@ interface WinnerPanelProps {
   positionLabels: string[];
   pot: number;
   currency: string;
+  showdownRecords: ShowdownRecord[];
   onConfirm: (winnerId: string) => void;
 }
 
@@ -283,6 +284,7 @@ export function WinnerPanel({
   positionLabels,
   pot,
   currency,
+  showdownRecords,
   onConfirm,
 }: WinnerPanelProps) {
   const [selected, setSelected] = useState<string | null>(null);
@@ -295,17 +297,35 @@ export function WinnerPanel({
       </div>
 
       <div className="winner-list">
-        {activePlayers.map((p, i) => (
-          <button
-            key={p.id}
-            type="button"
-            className={`winner-btn ${selected === p.id ? 'winner-btn--selected' : ''}`}
-            onClick={() => setSelected(p.id)}
-          >
-            <span className="winner-btn__pos">{positionLabels[i] ?? ''}</span>
-            <span className="winner-btn__name">{p.name}</span>
-          </button>
-        ))}
+        {activePlayers.map((p, i) => {
+          const record = showdownRecords.find((r) => r.playerId === p.id && r.action === 'show');
+          return (
+            <button
+              key={p.id}
+              type="button"
+              className={`winner-btn ${selected === p.id ? 'winner-btn--selected' : ''}`}
+              onClick={() => setSelected(p.id)}
+            >
+              <span className="winner-btn__pos">{positionLabels[i] ?? ''}</span>
+              {record?.cards && (
+                <span className="winner-btn__cards">
+                  {record.cards.map((card, ci) => {
+                    const suit = SUITS.find((s) => s.value === card.suit);
+                    return (
+                      <span
+                        key={ci}
+                        className="winner-btn__card"
+                        style={{ color: suit?.color }}
+                      >
+                        {card.rank}{suit?.label}
+                      </span>
+                    );
+                  })}
+                </span>
+              )}
+            </button>
+          );
+        })}
       </div>
 
       <button

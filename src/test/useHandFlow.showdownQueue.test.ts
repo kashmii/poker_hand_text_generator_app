@@ -380,36 +380,39 @@ describe('useHandFlow: showdownキュー構築', () => {
       expect(result.current.state.showdownQueue[0]).toBe('btn');
     });
 
-    it('全ストリートで同じプレイヤーがアグレッサー → そのプレイヤーが先頭', () => {
-      // 全ストリートでBTNがレイズ/ベット
+    it('【バグ修正】リバーで誰もベットしなかった場合はOOP(SB)が先頭になる（前ストリートのアグレッサーは無視）', () => {
+      // フロップ: BBベット（フロップアグレッサー）
+      // ターン: BTNベット（ターンアグレッサー）
+      // リバー: 全員チェック
+      // → リバーでベットなし → OOP順: [SB, BB, BTN]
       const { result } = renderHook(() => useHandFlow(makeSession3way()));
       skipHoleCards(result);
-      // プリフロップ: BTNレイズ
-      act(() => { result.current.commitAction('raise', 30); }); // BTN raise
-      act(() => { result.current.commitAction('call'); });        // SB call
-      act(() => { result.current.commitAction('call'); });        // BB call → flop
+      // プリフロップ: 全員コール
+      act(() => { result.current.commitAction('call'); });   // BTN
+      act(() => { result.current.commitAction('call'); });   // SB
+      act(() => { result.current.commitAction('check'); });  // BB → flop
       act(() => { result.current.confirmBoard(); });
-      // フロップ: BTNベット
+      // フロップ: BBがベット
       act(() => { result.current.commitAction('check'); });    // SB
-      act(() => { result.current.commitAction('check'); });    // BB
-      act(() => { result.current.commitAction('bet', 20); }); // BTN bet
-      act(() => { result.current.commitAction('call'); });     // SB call
-      act(() => { result.current.commitAction('call'); });     // BB call → turn
+      act(() => { result.current.commitAction('bet', 20); }); // BB bet
+      act(() => { result.current.commitAction('call'); });     // BTN call
+      act(() => { result.current.commitAction('call'); });     // SB call → turn
       act(() => { result.current.confirmBoard(); });
-      // ターン: BTNベット
+      // ターン: BTNがベット
       act(() => { result.current.commitAction('check'); });    // SB
       act(() => { result.current.commitAction('check'); });    // BB
       act(() => { result.current.commitAction('bet', 40); }); // BTN bet
       act(() => { result.current.commitAction('call'); });     // SB call
       act(() => { result.current.commitAction('call'); });     // BB call → river
       act(() => { result.current.confirmBoard(); });
-      // リバー: 全員チェック
+      // リバー: 全員チェック → showdown
       act(() => { result.current.commitAction('check'); });    // SB
       act(() => { result.current.commitAction('check'); });    // BB
       act(() => { result.current.commitAction('check'); });    // BTN → showdown
 
-      // リバーでチェックのみ→ラストアグレッサーはターンのBTN
-      expect(result.current.state.showdownQueue[0]).toBe('btn');
+      expect(result.current.state.phase).toBe('showdown');
+      // リバーでベットなし → OOP順
+      expect(result.current.state.showdownQueue).toEqual(['sb', 'bb', 'btn']);
     });
 
   });

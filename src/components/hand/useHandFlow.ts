@@ -87,9 +87,13 @@ function buildShowdownQueue(
   const active = buildPostflopOrder(playerIds, foldedIds);
   if (active.length <= 1) return active;
 
-  // 全ストリートを時系列順に並べてラストアグレッサーを探す
+  // 最後にアクションがあったストリートのみでラストアグレッサーを探す。
+  // リバーで誰もベットしなかった場合はそのストリートのアグレッサーは存在しないため
+  // OOP順（SBから）になる。
   let lastAggressor: string | null = null;
-  for (const street of STREETS) {
+  const reversedStreets = [...STREETS].reverse(); // river → turn → flop → preflop
+  for (const street of reversedStreets) {
+    if (streets[street].length === 0) continue; // このストリートにアクションなし（スキップ）
     for (const action of streets[street]) {
       if (
         (action.type === 'bet' || action.type === 'raise' || action.type === 'allin') &&
@@ -98,6 +102,7 @@ function buildShowdownQueue(
         lastAggressor = action.playerId;
       }
     }
+    break; // 最後にアクションがあったストリートのみ見る
   }
 
   if (!lastAggressor || !active.includes(lastAggressor)) {

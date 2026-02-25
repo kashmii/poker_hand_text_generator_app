@@ -4,29 +4,39 @@ import { createDefaultPlayers } from '../context/AppContext';
 import { BLIND_PRESETS } from './setup/constants';
 import BlindSection from './setup/BlindSection';
 import PlayerSection from './setup/PlayerSection';
+
 interface Props {
   onStart: (config: SessionConfig) => void;
+  onUpdate?: (config: SessionConfig) => void;
   onViewResult?: () => void;
+  initialSession?: SessionConfig;
 }
 
-export default function SessionSetup({ onStart, onViewResult }: Props) {
+export default function SessionSetup({ onStart, onUpdate, onViewResult, initialSession }: Props) {
   // セッション情報
-  const [venueName, setVenueName] = useState('');
-  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+  const [venueName, setVenueName] = useState(initialSession?.venueName ?? '');
+  const [date, setDate] = useState(initialSession?.date ?? new Date().toISOString().slice(0, 10));
 
   // ブラインド設定
-  const [currency, setCurrency] = useState('₱');
-  const [blindPresetIdx, setBlindPresetIdx] = useState(0);
-  const [ante, setAnte] = useState(0);
+  const [currency, setCurrency] = useState(initialSession?.currency ?? '₱');
+  const [blindPresetIdx, setBlindPresetIdx] = useState(() => {
+    if (!initialSession) return 0;
+    const presets = BLIND_PRESETS[initialSession.currency] ?? BLIND_PRESETS['$'];
+    const idx = presets.findIndex(
+      (p) => p.sb === initialSession.smallBlind && p.bb === initialSession.bigBlind
+    );
+    return idx >= 0 ? idx : 0;
+  });
+  const [ante, setAnte] = useState(initialSession?.ante ?? 0);
+
+  // プレイヤー設定
+  const [playerCount, setPlayerCount] = useState(initialSession?.players.length ?? 9);
+  const [players, setPlayers] = useState(initialSession?.players ?? createDefaultPlayers(9));
 
   const currentPresets = BLIND_PRESETS[currency] ?? BLIND_PRESETS['$'];
   const selectedPreset = currentPresets[blindPresetIdx] ?? currentPresets[0];
   const smallBlind = selectedPreset.sb;
   const bigBlind = selectedPreset.bb;
-
-  // プレイヤー設定
-  const [playerCount, setPlayerCount] = useState(9);
-  const [players, setPlayers] = useState(createDefaultPlayers(9));
 
   const handleCurrencyChange = (val: string) => {
     setCurrency(val);
@@ -38,12 +48,9 @@ export default function SessionSetup({ onStart, onViewResult }: Props) {
     setPlayers(createDefaultPlayers(count));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const buildConfig = (): SessionConfig => {
     const configPlayers = players.map((p, i) => ({ ...p, position: i }));
-    // heroPositionはhand画面で設定するため、初期値はBTN(index=0)
-    const heroId = configPlayers[0]?.id ?? '';
-    onStart({
+    return {
       smallBlind,
       bigBlind,
       ante,
@@ -52,10 +59,27 @@ export default function SessionSetup({ onStart, onViewResult }: Props) {
       venueName,
       date,
       players: configPlayers,
-      heroId,
+      heroId: configPlayers[0]?.id ?? '',
       heroPosition: '',
       heroEffectiveStack: 100,
-    });
+    };
+  };
+
+  // 新規セッション開始（hands リセット）
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onStart(buildConfig());
+  };
+
+  // 設定を更新（hands 保持）
+  const handleUpdate = () => {
+    onUpdate!(buildConfig());
+  };
+
+  // 新しいセッションを開始（確認あり）
+  const handleNewSession = () => {
+    if (!confirm('現在のハンド履歴はすべて削除されます。新しいセッションを開始しますか？')) return;
+    onStart(buildConfig());
   };
 
   return (
@@ -109,9 +133,20 @@ export default function SessionSetup({ onStart, onViewResult }: Props) {
         />
 
         <div className="setup-footer">
-          <button type="submit" className="btn-primary btn-full">
-            セッション開始 →
-          </button>
+          {onUpdate ? (
+            <div className="setup-footer-btns">
+              <button type="button" className="btn-primary btn-full" onClick={handleUpdate}>
+                設定を更新
+              </button>
+              <button type="button" className="btn-secondary btn-full" onClick={handleNewSession}>
+                新しいセッションを開始
+              </button>
+            </div>
+          ) : (
+            <button type="submit" className="btn-primary btn-full">
+              セッション開始 →
+            </button>
+          )}
         </div>
       </form>
     </div>

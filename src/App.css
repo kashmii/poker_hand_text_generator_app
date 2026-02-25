@@ -365,6 +365,11 @@ input[type='radio'] {
   position: sticky;
   bottom: 0;
 }
+.setup-footer-btns {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
 
 .hero-position-badge {
   display: inline-block;

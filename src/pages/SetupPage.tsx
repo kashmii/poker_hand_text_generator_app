@@ -25,18 +25,25 @@ function buildDummySession(): SessionConfig {
 }
 
 export default function SetupPage() {
-  const { startSession, hands, loadDummyData } = useApp();
+  const { session, sessionReady, startSession, hands, loadDummyData, updateSession } = useApp();
   const navigate = useNavigate();
 
+  // 新規セッション開始（hands リセット）
   const handleStart = (config: SessionConfig) => {
     startSession(config);
     navigate('/hand');
   };
 
+  // 設定更新（hands 保持）
+  const handleUpdate = (config: SessionConfig) => {
+    updateSession(config);
+    navigate('/hand');
+  };
+
   const handleLoadDummy = () => {
-    const session = buildDummySession();
-    const dummyHands = generateDummyHands(session, 1, DUMMY_HAND_COUNT);
-    loadDummyData(session, dummyHands);
+    const dummySession = buildDummySession();
+    const dummyHands = generateDummyHands(dummySession, 1, DUMMY_HAND_COUNT);
+    loadDummyData(dummySession, dummyHands);
     navigate('/result');
   };
 
@@ -54,6 +61,8 @@ export default function SetupPage() {
       )}
       <SessionSetup
         onStart={handleStart}
+        onUpdate={sessionReady && hands.length > 0 ? handleUpdate : undefined}
+        initialSession={sessionReady ? session : undefined}
         onViewResult={hands.length > 0 ? () => navigate('/result') : undefined}
       />
     </>

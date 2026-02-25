@@ -5,7 +5,7 @@ import HandReview from '../components/HandReview';
 import { generateDummyHands } from '../utils/generateDummyHands';
 
 export default function ResultPage() {
-  const { session, sessionReady, hands, handCounter, saveHand, deleteHand, incrementHandCounter } = useApp();
+  const { session, sessionReady, hands, handCounter, saveHand, deleteHand, incrementHandCounter, updateSession } = useApp();
   const navigate = useNavigate();
 
   // セッション未設定ならSetupへ
@@ -28,7 +28,7 @@ export default function ResultPage() {
       <HandReview
         hands={hands}
         session={session}
-        onNewHand={() => navigate('/hand')}
+        onNewHand={() => { updateSession({ heroPosition: '', heroId: '' }); navigate('/hand'); }}
         onEditSettings={() => navigate('/setup')}
         onDeleteHand={deleteHand}
         onUpdateHand={saveHand}

@@ -197,6 +197,7 @@ export default function HandInput({ session, handNumber, onSave, onCancel, onUpd
       heroHoleCards: state.holeCards ?? undefined,
       showdown: showdownEntries.length > 0 ? showdownEntries : undefined,
       winners: winnerEntries,
+      session: { ...session },
     };
     onSave(hand);
   };

@@ -84,6 +84,7 @@ export function generateDummyHands(session: SessionConfig, startNumber: number, 
       pot,
       winners: [{ playerId: winnerId, amount: pot }],
       title: TITLES[(handNumber - 1) % TITLES.length],
+      session: { ...session },
     } satisfies HandData;
   });
 }

@@ -83,6 +83,8 @@ export interface HandData {
   }[];
   notes?: string;
   title?: string;
+  /** 記録時のセッション設定スナップショット（人数変更があっても当時の設定でテキスト生成するため） */
+  session?: SessionConfig;
 }
 
 // ========== アプリ状態 ==========

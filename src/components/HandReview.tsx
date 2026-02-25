@@ -28,7 +28,7 @@ export default function HandReview({
   const [editingTitleValue, setEditingTitleValue] = useState('');
 
   const allHandsText = hands
-    .map((h) => generateHandText(h, buildSessionWithCards(h, session)))
+    .map((h) => generateHandText(h, buildSessionWithCards(h, h.session ?? session)))
     .join('\n---\n\n');
 
   const handleCopy = async (text: string, setter: (v: boolean) => void) => {
@@ -85,7 +85,7 @@ export default function HandReview({
                   : 'Flop'
                 : 'Preflop';
               const handText = isOpen
-                ? generateHandText(h, buildSessionWithCards(h, session))
+                ? generateHandText(h, buildSessionWithCards(h, h.session ?? session))
                 : '';
 
               return (

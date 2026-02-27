@@ -172,7 +172,7 @@ export function generateHandText(
 
   // --- ターン ---
   if (hand.streets.turn) {
-    const turnPot = computeStreetPot(hand, 'turn', smallBlind, bigBlind, ante);
+    const turnPot = computeStreetPot(hand, 'flop', smallBlind, bigBlind, ante);
     const turnFolded = foldedBeforeStreet('turn');
     const turnPlayers = totalPlayers - turnFolded.size;
     const boardStr = hand.streets.turn.board
@@ -188,7 +188,7 @@ export function generateHandText(
 
   // --- リバー ---
   if (hand.streets.river) {
-    const riverPot = computeStreetPot(hand, 'river', smallBlind, bigBlind, ante);
+    const riverPot = computeStreetPot(hand, 'turn', smallBlind, bigBlind, ante);
     const riverFolded = foldedBeforeStreet('river');
     const riverPlayers = totalPlayers - riverFolded.size;
     const boardStr = hand.streets.river.board

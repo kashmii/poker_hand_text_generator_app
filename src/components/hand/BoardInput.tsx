@@ -25,6 +25,8 @@ interface Props {
   onCardChange: (idx: number, card: Card | null) => void;
   onConfirm: () => void;
   onBack?: () => void;
+  /** 全スロット入力済みのときに出す確定ボタンの文言 */
+  confirmLabel?: string;
 }
 
 function cardDisplay(card: Card | null) {
@@ -38,7 +40,7 @@ function cardKey(card: Card) {
   return `${card.rank}${card.suit}`;
 }
 
-export default function BoardInput({ street, cards, usedCards = [], onCardChange, onConfirm, onBack }: Props) {
+export default function BoardInput({ street, cards, usedCards = [], onCardChange, onConfirm, onBack, confirmLabel = '確定' }: Props) {
   // 現在入力中のスロット（0〜cards.length-1）、nullなら選択待ち
   const [activeSlot, setActiveSlot] = useState<number | null>(
     // 最初の空きスロットを自動選択
@@ -212,15 +214,27 @@ export default function BoardInput({ street, cards, usedCards = [], onCardChange
         </div>
       </div>
 
-      {onBack && (
-        <div className="board-input__actions">
-          <button
-            type="button"
-            className="btn-secondary board-input__back"
-            onClick={onBack}
-          >
-            ← 1手戻る
-          </button>
+      {(onBack || allFilled) && (
+        <div className={`board-input__actions ${onBack && allFilled ? 'board-input__actions--two' : ''}`}>
+          {onBack && (
+            <button
+              type="button"
+              className="btn-secondary board-input__back"
+              onClick={onBack}
+            >
+              ← 1手戻る
+            </button>
+          )}
+          {/* 先行入力などで全スロットが埋まっている場合は自動確定されないため、確定ボタンを出す */}
+          {allFilled && (
+            <button
+              type="button"
+              className="btn-primary board-input__confirm"
+              onClick={onConfirm}
+            >
+              {confirmLabel}
+            </button>
+          )}
         </div>
       )}
     </div>

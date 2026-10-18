@@ -231,7 +231,7 @@ export default function BoardInput({
               className="btn-secondary board-input__back"
               onClick={onBack}
             >
-              ← 1手戻る
+              ← 1つ戻る
             </button>
           )}
           {/* 先行入力などで全スロットが埋まっている場合は自動確定されないため、確定ボタンを出す */}

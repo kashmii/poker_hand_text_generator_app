@@ -1879,3 +1879,23 @@ input[type='radio'] {
 .winner-confirm-btn {
   margin-top: 0.25rem;
 }
+
+/* ハンド終了の確認（生き残りが1人のとき） */
+.hand-end__winner {
+  justify-content: center;
+  cursor: default;
+}
+.hand-end__winner:hover {
+  border-color: #fbbf24;
+}
+.hand-end__actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.25rem;
+}
+.hand-end__back {
+  flex: 1;
+}
+.hand-end__confirm {
+  flex: 2;
+}

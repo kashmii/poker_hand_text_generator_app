@@ -339,3 +339,39 @@ export function WinnerPanel({
     </div>
   );
 }
+
+// ============================================================
+// HandEndPanel: 生き残りが1人で決着したときの確認（勝者選択の代わり）
+// ============================================================
+interface HandEndPanelProps {
+  winnerPositionLabel: string;
+  pot: number;
+  currency: string;
+  onConfirm: () => void;
+  onBack?: () => void;
+}
+
+export function HandEndPanel({ winnerPositionLabel, pot, currency, onConfirm, onBack }: HandEndPanelProps) {
+  return (
+    <div className="winner-panel">
+      <div className="winner-panel__title">ハンド終了</div>
+      <div className="winner-panel__pot">
+        POT: <span className="winner-panel__pot-amount">{currency}{pot.toLocaleString()}</span>
+      </div>
+      <div className="winner-btn winner-btn--selected hand-end__winner">
+        <span className="winner-btn__pos">{winnerPositionLabel}</span>
+        の勝ち
+      </div>
+      <div className="hand-end__actions">
+        {onBack && (
+          <button type="button" className="btn-secondary hand-end__back" onClick={onBack}>
+            ← 1つ戻る
+          </button>
+        )}
+        <button type="button" className="btn-primary hand-end__confirm" onClick={onConfirm}>
+          保存 →
+        </button>
+      </div>
+    </div>
+  );
+}

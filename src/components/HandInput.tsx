@@ -6,7 +6,7 @@ import { useHandFlow } from './hand/useHandFlow';
 import PokerTable from './hand/PokerTable';
 import ActionPanel from './hand/ActionPanel';
 import BoardInput from './hand/BoardInput';
-import { ShowdownPlayerPanel, WinnerPanel } from './hand/ShowdownPanel';
+import { ShowdownPlayerPanel, WinnerPanel, HandEndPanel } from './hand/ShowdownPanel';
 import type { RecordedAction } from './hand/types';
 import { pickRandomCards } from '../utils/randomCard';
 import { reachedBoards } from '../utils/reachedBoards';
@@ -248,6 +248,9 @@ export default function HandInput({ session, handNumber, onSave, onCancel, onUpd
   );
   const activePosLabels = activePlayers.map((p) => posLabels[players.indexOf(p)] ?? '');
 
+  // 生き残りが1人なら勝者は決まっているので、勝者選択の代わりにハンド終了の確認だけ出す
+  const soleWinnerId = isWinner && activePlayers.length === 1 ? activePlayers[0].id : null;
+
   return (
     <div className="hand-input-v2">
       {/* ヘッダー */}
@@ -468,21 +471,31 @@ export default function HandInput({ session, handNumber, onSave, onCancel, onUpd
             />
             {canGoBack && (
               <button type="button" className="action-back-btn" onClick={goBack}>
-                ← 1手戻る
+                ← 1つ戻る
               </button>
             )}
           </div>
 
         ) : isWinner ? (
-          /* ウィナー選択 */
-          <WinnerPanel
-            activePlayers={activePlayers}
-            positionLabels={activePosLabels}
-            pot={state.pot}
-            currency={session.currency}
-            showdownRecords={state.showdownRecords}
-            onConfirm={(id) => handleSave(id)}
-          />
+          /* ウィナー選択（生き残りが1人ならハンド終了の確認） */
+          soleWinnerId ? (
+            <HandEndPanel
+              winnerPositionLabel={activePosLabels[0]}
+              pot={state.pot}
+              currency={session.currency}
+              onConfirm={() => handleSave(soleWinnerId)}
+              onBack={canGoBack ? goBack : undefined}
+            />
+          ) : (
+            <WinnerPanel
+              activePlayers={activePlayers}
+              positionLabels={activePosLabels}
+              pot={state.pot}
+              currency={session.currency}
+              showdownRecords={state.showdownRecords}
+              onConfirm={(id) => handleSave(id)}
+            />
+          )
 
         ) : isBoardInput ? (
           /* ボード入力 */

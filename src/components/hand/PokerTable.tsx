@@ -7,6 +7,8 @@ interface Props {
   state: HandFlowState;
   actorId: string | null;
   heroId: string;
+  /** ボード5枠をタップしたとき（ボード入力を開く） */
+  onBoardClick?: () => void;
 }
 
 const SUIT_SYMBOLS: Record<string, string> = {
@@ -75,7 +77,7 @@ function cardLabel(card: { rank: string; suit: string } | null | undefined) {
   return `${card.rank}${SUIT_SYMBOLS[card.suit] ?? ''}`;
 }
 
-export default function PokerTable({ players, state, actorId, heroId }: Props) {
+export default function PokerTable({ players, state, actorId, heroId, onBoardClick }: Props) {
   const posLabels = POSITION_LABELS_BY_COUNT[players.length] ?? [];
   const heroIndex = players.findIndex((p) => p.id === heroId);
   const safeHeroIndex = heroIndex >= 0 ? heroIndex : 0;
@@ -217,7 +219,14 @@ export default function PokerTable({ players, state, actorId, heroId }: Props) {
             return true; // river
           };
           return (
-            <g>
+            <g
+              onClick={onBoardClick}
+              style={onBoardClick ? { cursor: 'pointer' } : undefined}
+            >
+              {/* カード間の隙間もタップできるように、5枠全体を覆う透明な当たり判定 */}
+              {onBoardClick && (
+                <rect x={startX} y={18} width={totalW} height={cardH} fill="transparent" />
+              )}
               {Array.from({ length: 5 }, (_, i) => {
                 const x = startX + i * (cardW + gap) + cardW / 2;
                 const card = revealed[i];

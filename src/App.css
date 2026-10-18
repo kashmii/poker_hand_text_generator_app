@@ -53,6 +53,10 @@ body {
   min-height: 100dvh;
   padding-bottom: 2rem;
 }
+/* hand画面は 100dvh ぴったりに収めるので、下の余白でページがスクロールしないようにする */
+.app:has(> .hand-input-v2) {
+  padding-bottom: 0;
+}
 
 /* ===== TYPOGRAPHY ===== */
 h1 {
@@ -350,6 +354,36 @@ input[type='radio'] {
 /* hand画面では flex の末尾へ */
 .hand-input-v2__header .btn-view-result {
   margin-left: auto;
+}
+
+/* ボード先行入力メモの入口（テーブル図の右上） */
+.btn-board-memo {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.75rem;
+  z-index: 1;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 0.35rem 0.7rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  white-space: nowrap;
+}
+.btn-board-memo--active {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.board-memo__close {
+  padding: 0.1rem 0.45rem;
+  font-size: 0.8rem;
+  line-height: 1.4;
+  background: transparent;
+  color: var(--color-text-muted);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
 }
 
 .setup-form {
@@ -1141,6 +1175,7 @@ input[type='radio'] {
 
 /* ===== POKER TABLE ===== */
 .hand-input-v2__table {
+  position: relative;
   flex: 1 1 0;
   min-height: 0;
   display: flex;
@@ -1185,8 +1220,9 @@ input[type='radio'] {
 /* ===== BOTTOM PANEL ===== */
 .hand-input-v2__bottom {
   flex-shrink: 0;
-  height: 310px;
-  overflow-y: auto;
+  /* スクロールさせず、中身が 310px を超えるときはパネルを伸ばしてテーブル図側を縮める */
+  min-height: 310px;
+  overflow: hidden;
   background: var(--color-surface);
   border-top: 1px solid var(--color-border);
   padding: 0.75rem 1rem;
@@ -1516,6 +1552,11 @@ input[type='radio'] {
   position: relative;
 }
 
+/* ボードメモ: フロップ | ターン | リバー の区切り */
+.board-slot--group-start {
+  margin-left: 0.4rem;
+}
+
 .board-slot--active {
   border-color: var(--color-primary);
   background: #1e3a5f;
@@ -1837,4 +1878,24 @@ input[type='radio'] {
 
 .winner-confirm-btn {
   margin-top: 0.25rem;
+}
+
+/* ハンド終了の確認（生き残りが1人のとき） */
+.hand-end__winner {
+  justify-content: center;
+  cursor: default;
+}
+.hand-end__winner:hover {
+  border-color: #fbbf24;
+}
+.hand-end__actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.25rem;
+}
+.hand-end__back {
+  flex: 1;
+}
+.hand-end__confirm {
+  flex: 2;
 }

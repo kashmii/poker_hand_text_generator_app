@@ -6,9 +6,10 @@ import { useHandFlow } from './hand/useHandFlow';
 import PokerTable from './hand/PokerTable';
 import ActionPanel from './hand/ActionPanel';
 import BoardInput from './hand/BoardInput';
-import { ShowdownPlayerPanel, WinnerPanel } from './hand/ShowdownPanel';
+import { ShowdownPlayerPanel, WinnerPanel, HandEndPanel } from './hand/ShowdownPanel';
 import type { RecordedAction } from './hand/types';
 import { pickRandomCards } from '../utils/randomCard';
+import { reachedBoards } from '../utils/reachedBoards';
 
 const RANKS: Rank[] = ['A', 'K', 'Q', 'J', 'T', '9', '8', '7', '6', '5', '4', '3', '2'];
 const SUITS: { value: Suit; label: string; color: string }[] = [
@@ -35,6 +36,11 @@ const STREET_LABELS: Record<string, string> = {
   preflop: 'PREFLOP', flop: 'FLOP', turn: 'TURN', river: 'RIVER',
 };
 
+type BoardStreet = 'flop' | 'turn' | 'river';
+const BOARD_STREETS: BoardStreet[] = ['flop', 'turn', 'river'];
+/** ボードメモの5スロットと、書き込み先（ストリート・インデックス）の対応 */
+const MEMO_SLOTS: [BoardStreet, number][] = [['flop', 0], ['flop', 1], ['flop', 2], ['turn', 0], ['river', 0]];
+
 export default function HandInput({ session, handNumber, onSave, onCancel, onUpdateSession, onViewResult }: Props) {
   const {
     state,
@@ -56,6 +62,9 @@ export default function HandInput({ session, handNumber, onSave, onCancel, onUpd
   const [holeSlot, setHoleSlot] = useState<0 | 1>(0);
   const [holePendingRank, setHolePendingRank] = useState<Rank | null>(null);
   const [holeCards, setHoleCards] = useState<[Card | null, Card | null]>([null, null]);
+
+  // ボード先行入力メモを開いているか
+  const [memoOpen, setMemoOpen] = useState(false);
 
   const handleHoleSlotClick = (idx: 0 | 1) => {
     setHoleSlot(idx);
@@ -98,20 +107,20 @@ export default function HandInput({ session, handNumber, onSave, onCancel, onUpd
   /** カードを "rank+suit" の文字列に変換 */
   const cardKey = (c: Card) => `${c.rank}${c.suit}`;
 
+  /** ヒーローのホールカード（ホールカード入力中は入力済みの分） */
+  const buildHeroUsedCards = (): Card[] =>
+    state.holeCards ? [...state.holeCards] : holeCards.filter((c): c is Card => c !== null);
+
   /**
-   * ボード入力フェーズで使用済みとみなすカード一覧を計算する。
-   * - ヒーローのホールカード
-   * - 過去ストリートで確定したボードカード
+   * ボード入力（通常フェーズ・先行入力メモ）で使用済みとみなすカード一覧を計算する。
+   * - ヒーローのホールカード（ホールカード入力中は入力済みの分）
+   * - 他ストリートのボードカード（先行入力メモで入れた未到達ストリートの分も含む）
    */
-  const buildBoardUsedCards = (currentStreet: 'flop' | 'turn' | 'river'): Card[] => {
-    const used: Card[] = [];
-    if (state.holeCards) used.push(...state.holeCards);
-    if (currentStreet === 'turn' || currentStreet === 'river') {
-      state.boards.flop.forEach((c) => { if (c) used.push(c); });
-    }
-    if (currentStreet === 'river') {
-      state.boards.turn.forEach((c) => { if (c) used.push(c); });
-    }
+  const buildBoardUsedCards = (currentStreet: BoardStreet): Card[] => {
+    const used: Card[] = buildHeroUsedCards();
+    BOARD_STREETS.filter((st) => st !== currentStreet).forEach((st) => {
+      state.boards[st].forEach((c) => { if (c) used.push(c); });
+    });
     return used;
   };
 
@@ -133,12 +142,13 @@ export default function HandInput({ session, handNumber, onSave, onCancel, onUpd
     return used;
   };
 
-  /** ホールカード入力フェーズの使用済みセット */
-  const holeUsedSet = new Set<string>(
-    holeCards
+  /** ホールカード入力フェーズの使用済みセット（先行入力メモのボードカードも含む） */
+  const holeUsedSet = new Set<string>([
+    ...holeCards
       .filter((c, i): c is Card => c !== null && i !== holeSlot)
-      .map(cardKey)
-  );
+      .map(cardKey),
+    ...BOARD_STREETS.flatMap((st) => state.boards[st].filter((c): c is Card => c !== null).map(cardKey)),
+  ]);
 
   const isHoleRankFullyUsed = (r: Rank): boolean =>
     SUITS.every((s) => holeUsedSet.has(`${r}${s.value}`));
@@ -157,6 +167,9 @@ export default function HandInput({ session, handNumber, onSave, onCancel, onUpd
     const filterBoard = (cards: (Card | null)[]) =>
       cards.filter((c): c is Card => c !== null);
 
+    // 先行入力メモで入れた未到達ストリートのボードは保存しない
+    const boards = reachedBoards(state.boards, state.currentStreet);
+
     // showdown records → ShowdownEntry[]
     const showdownEntries = state.showdownRecords
       .filter((r) => r.action === 'show' && r.cards)
@@ -174,22 +187,22 @@ export default function HandInput({ session, handNumber, onSave, onCancel, onUpd
       dealerPosition: 0,
       streets: {
         preflop: { actions: toActions(state.streets.preflop) },
-        ...(state.streets.flop.length > 0 || filterBoard(state.boards.flop).length > 0 ? {
+        ...(state.streets.flop.length > 0 || filterBoard(boards.flop).length > 0 ? {
           flop: {
             actions: toActions(state.streets.flop),
-            board: filterBoard(state.boards.flop),
+            board: filterBoard(boards.flop),
           },
         } : {}),
-        ...(state.streets.turn.length > 0 || filterBoard(state.boards.turn).length > 0 ? {
+        ...(state.streets.turn.length > 0 || filterBoard(boards.turn).length > 0 ? {
           turn: {
             actions: toActions(state.streets.turn),
-            board: filterBoard(state.boards.turn),
+            board: filterBoard(boards.turn),
           },
         } : {}),
-        ...(state.streets.river.length > 0 || filterBoard(state.boards.river).length > 0 ? {
+        ...(state.streets.river.length > 0 || filterBoard(boards.river).length > 0 ? {
           river: {
             actions: toActions(state.streets.river),
-            board: filterBoard(state.boards.river),
+            board: filterBoard(boards.river),
           },
         } : {}),
       },
@@ -208,6 +221,12 @@ export default function HandInput({ session, handNumber, onSave, onCancel, onUpd
   const isWinner = state.phase === 'winner';
   const boardStreet = state.currentStreet as 'flop' | 'turn' | 'river';
   const holeAllFilled = holeCards[0] !== null && holeCards[1] !== null;
+
+  const boardFilledCount = BOARD_STREETS.reduce(
+    (n, st) => n + state.boards[st].filter((c) => c !== null).length, 0,
+  );
+  const memoCards = MEMO_SLOTS.map(([st, i]) => state.boards[st][i]);
+  const canOpenMemo = state.phase !== 'done';
 
   // ショーダウン: 現在対象のプレイヤー
   const currentShowdownPlayerId = state.showdownQueue[0] ?? null;
@@ -228,6 +247,9 @@ export default function HandInput({ session, handNumber, onSave, onCancel, onUpd
     (p) => !state.foldedIds.has(p.id) && !muckedPlayerIds.has(p.id),
   );
   const activePosLabels = activePlayers.map((p) => posLabels[players.indexOf(p)] ?? '');
+
+  // 生き残りが1人なら勝者は決まっているので、勝者選択の代わりにハンド終了の確認だけ出す
+  const soleWinnerId = isWinner && activePlayers.length === 1 ? activePlayers[0].id : null;
 
   return (
     <div className="hand-input-v2">
@@ -258,12 +280,40 @@ export default function HandInput({ session, handNumber, onSave, onCancel, onUpd
           state={state}
           actorId={(state.phase === 'board-input' || state.phase === 'hole-cards') ? null : actorId}
           heroId={session.heroId}
+          onBoardClick={canOpenMemo ? () => setMemoOpen(true) : undefined}
         />
+        {/* ボード先行入力メモの入口（ボード5枠のタップでも開く） */}
+        {canOpenMemo && (
+          <button
+            type="button"
+            className={`btn-board-memo ${memoOpen ? 'btn-board-memo--active' : ''}`}
+            onClick={() => setMemoOpen((v) => !v)}
+          >
+            🃏 ボード入力{boardFilledCount > 0 ? ` ${boardFilledCount}/5` : ''}
+          </button>
+        )}
       </div>
 
       {/* 下半分 */}
       <div className="hand-input-v2__bottom">
-        {isHoleCardsPhase && !session.heroPosition ? (
+        {memoOpen ? (
+          /* ボード先行入力メモ: 5枚をまとめて入力し、本番の state.boards に直接書き込む（phase は進めない） */
+          <BoardInput
+            title="ボードをメモ"
+            titleExtra={
+              <button type="button" className="board-memo__close" onClick={() => setMemoOpen(false)}>
+                ✕
+              </button>
+            }
+            cards={memoCards}
+            groupStarts={[3, 4]}
+            usedCards={buildHeroUsedCards()}
+            onCardChange={(idx, card) => updateBoard(MEMO_SLOTS[idx][0], MEMO_SLOTS[idx][1], card)}
+            onConfirm={() => setMemoOpen(false)}
+            confirmLabel="閉じる"
+          />
+
+        ) : isHoleCardsPhase && !session.heroPosition ? (
           /* ポジション選択フェーズ */
           <div className="hero-position-panel">
             <div className="board-input__title">自分のポジションを選択</div>
@@ -421,21 +471,31 @@ export default function HandInput({ session, handNumber, onSave, onCancel, onUpd
             />
             {canGoBack && (
               <button type="button" className="action-back-btn" onClick={goBack}>
-                ← 1手戻る
+                ← 1つ戻る
               </button>
             )}
           </div>
 
         ) : isWinner ? (
-          /* ウィナー選択 */
-          <WinnerPanel
-            activePlayers={activePlayers}
-            positionLabels={activePosLabels}
-            pot={state.pot}
-            currency={session.currency}
-            showdownRecords={state.showdownRecords}
-            onConfirm={(id) => handleSave(id)}
-          />
+          /* ウィナー選択（生き残りが1人ならハンド終了の確認） */
+          soleWinnerId ? (
+            <HandEndPanel
+              winnerPositionLabel={activePosLabels[0]}
+              pot={state.pot}
+              currency={session.currency}
+              onConfirm={() => handleSave(soleWinnerId)}
+              onBack={canGoBack ? goBack : undefined}
+            />
+          ) : (
+            <WinnerPanel
+              activePlayers={activePlayers}
+              positionLabels={activePosLabels}
+              pot={state.pot}
+              currency={session.currency}
+              showdownRecords={state.showdownRecords}
+              onConfirm={(id) => handleSave(id)}
+            />
+          )
 
         ) : isBoardInput ? (
           /* ボード入力 */

@@ -211,7 +211,7 @@ export default function ActionPanel({
       {/* 戻るボタン */}
       {canGoBack && inputMode === 'none' && (
         <button type="button" className="action-back-btn" onClick={onBack}>
-          ← 1手戻る
+          ← 1つ戻る
         </button>
       )}
     </div>

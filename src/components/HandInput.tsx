@@ -38,7 +38,8 @@ const STREET_LABELS: Record<string, string> = {
 
 type BoardStreet = 'flop' | 'turn' | 'river';
 const BOARD_STREETS: BoardStreet[] = ['flop', 'turn', 'river'];
-const BOARD_STREET_TABS: Record<BoardStreet, string> = { flop: 'フロップ', turn: 'ターン', river: 'リバー' };
+/** ボードメモの5スロットと、書き込み先（ストリート・インデックス）の対応 */
+const MEMO_SLOTS: [BoardStreet, number][] = [['flop', 0], ['flop', 1], ['flop', 2], ['turn', 0], ['river', 0]];
 
 export default function HandInput({ session, handNumber, onSave, onCancel, onUpdateSession, onViewResult }: Props) {
   const {
@@ -62,8 +63,8 @@ export default function HandInput({ session, handNumber, onSave, onCancel, onUpd
   const [holePendingRank, setHolePendingRank] = useState<Rank | null>(null);
   const [holeCards, setHoleCards] = useState<[Card | null, Card | null]>([null, null]);
 
-  // ボード先行入力メモ: 開いているストリート（null なら閉じている）
-  const [memoStreet, setMemoStreet] = useState<BoardStreet | null>(null);
+  // ボード先行入力メモを開いているか
+  const [memoOpen, setMemoOpen] = useState(false);
 
   const handleHoleSlotClick = (idx: 0 | 1) => {
     setHoleSlot(idx);
@@ -106,15 +107,17 @@ export default function HandInput({ session, handNumber, onSave, onCancel, onUpd
   /** カードを "rank+suit" の文字列に変換 */
   const cardKey = (c: Card) => `${c.rank}${c.suit}`;
 
+  /** ヒーローのホールカード（ホールカード入力中は入力済みの分） */
+  const buildHeroUsedCards = (): Card[] =>
+    state.holeCards ? [...state.holeCards] : holeCards.filter((c): c is Card => c !== null);
+
   /**
    * ボード入力（通常フェーズ・先行入力メモ）で使用済みとみなすカード一覧を計算する。
    * - ヒーローのホールカード（ホールカード入力中は入力済みの分）
    * - 他ストリートのボードカード（先行入力メモで入れた未到達ストリートの分も含む）
    */
   const buildBoardUsedCards = (currentStreet: BoardStreet): Card[] => {
-    const used: Card[] = [];
-    if (state.holeCards) used.push(...state.holeCards);
-    else holeCards.forEach((c) => { if (c) used.push(c); });
+    const used: Card[] = buildHeroUsedCards();
     BOARD_STREETS.filter((st) => st !== currentStreet).forEach((st) => {
       state.boards[st].forEach((c) => { if (c) used.push(c); });
     });
@@ -222,10 +225,8 @@ export default function HandInput({ session, handNumber, onSave, onCancel, onUpd
   const boardFilledCount = BOARD_STREETS.reduce(
     (n, st) => n + state.boards[st].filter((c) => c !== null).length, 0,
   );
-  /** メモを開くときは、最初に空きスロットがあるストリートを表示する */
-  const openMemo = () => {
-    setMemoStreet(BOARD_STREETS.find((st) => state.boards[st].some((c) => c === null)) ?? 'flop');
-  };
+  const memoCards = MEMO_SLOTS.map(([st, i]) => state.boards[st][i]);
+  const canOpenMemo = state.phase !== 'done';
 
   // ショーダウン: 現在対象のプレイヤー
   const currentShowdownPlayerId = state.showdownQueue[0] ?? null;
@@ -254,17 +255,6 @@ export default function HandInput({ session, handNumber, onSave, onCancel, onUpd
         <button type="button" className="btn-back" onClick={onCancel}>← 戻る</button>
         <span className="hand-input-v2__title">Hand #{handNumber}</span>
         <span className="hand-input-v2__street">{STREET_LABELS[state.currentStreet]}</span>
-        {state.phase !== 'done' && (
-          <button
-            type="button"
-            className={`btn-board-memo ${memoStreet ? 'btn-board-memo--active' : ''}`}
-            onClick={() => (memoStreet ? setMemoStreet(null) : openMemo())}
-            aria-label="ボードを先に入力"
-          >
-            {/* 狭い画面でヘッダーが溢れないよう、入力済みなら枚数だけ出す */}
-            🃏 {boardFilledCount > 0 ? `${boardFilledCount}/5` : 'ボード'}
-          </button>
-        )}
         {onViewResult && (
           <button
             type="button"
@@ -287,42 +277,38 @@ export default function HandInput({ session, handNumber, onSave, onCancel, onUpd
           state={state}
           actorId={(state.phase === 'board-input' || state.phase === 'hole-cards') ? null : actorId}
           heroId={session.heroId}
+          onBoardClick={canOpenMemo ? () => setMemoOpen(true) : undefined}
         />
+        {/* ボード先行入力メモの入口（ボード5枠のタップでも開く） */}
+        {canOpenMemo && (
+          <button
+            type="button"
+            className={`btn-board-memo ${memoOpen ? 'btn-board-memo--active' : ''}`}
+            onClick={() => setMemoOpen((v) => !v)}
+          >
+            🃏 ボード入力{boardFilledCount > 0 ? ` ${boardFilledCount}/5` : ''}
+          </button>
+        )}
       </div>
 
       {/* 下半分 */}
       <div className="hand-input-v2__bottom">
-        {memoStreet ? (
-          /* ボード先行入力メモ: 本番の state.boards に直接書き込む（phase は進めない） */
-          <div className="board-memo">
-            <div className="board-memo__tabs">
-              {BOARD_STREETS.map((st) => (
-                <button
-                  key={st}
-                  type="button"
-                  className={`board-memo__tab ${memoStreet === st ? 'board-memo__tab--active' : ''}`}
-                  onClick={() => setMemoStreet(st)}
-                >
-                  {BOARD_STREET_TABS[st]}
-                  <span className="board-memo__tab-count">
-                    {state.boards[st].filter((c) => c !== null).length}/{state.boards[st].length}
-                  </span>
-                </button>
-              ))}
-              <button type="button" className="board-memo__close" onClick={() => setMemoStreet(null)}>
+        {memoOpen ? (
+          /* ボード先行入力メモ: 5枚をまとめて入力し、本番の state.boards に直接書き込む（phase は進めない） */
+          <BoardInput
+            title="ボードをメモ"
+            titleExtra={
+              <button type="button" className="board-memo__close" onClick={() => setMemoOpen(false)}>
                 ✕
               </button>
-            </div>
-            <BoardInput
-              key={memoStreet}
-              street={memoStreet}
-              cards={state.boards[memoStreet]}
-              usedCards={buildBoardUsedCards(memoStreet)}
-              onCardChange={(idx, card) => updateBoard(memoStreet, idx, card)}
-              onConfirm={() => setMemoStreet(null)}
-              confirmLabel="閉じる"
-            />
-          </div>
+            }
+            cards={memoCards}
+            groupStarts={[3, 4]}
+            usedCards={buildHeroUsedCards()}
+            onCardChange={(idx, card) => updateBoard(MEMO_SLOTS[idx][0], MEMO_SLOTS[idx][1], card)}
+            onConfirm={() => setMemoOpen(false)}
+            confirmLabel="閉じる"
+          />
 
         ) : isHoleCardsPhase && !session.heroPosition ? (
           /* ポジション選択フェーズ */

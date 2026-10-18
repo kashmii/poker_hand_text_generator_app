@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import type { Card, Rank, Suit } from '../../types/poker';
 import type { Street } from './types';
 import { pickRandomCards } from '../../utils/randomCard';
@@ -18,8 +18,14 @@ const STREET_LABELS: Record<string, string> = {
 };
 
 interface Props {
-  street: Street;
+  /** title を渡さない場合は「{ストリート}のカードを入力」をタイトルにする */
+  street?: Street;
+  title?: string;
+  /** タイトル行の右側に置く要素（閉じるボタンなど） */
+  titleExtra?: ReactNode;
   cards: (Card | null)[];
+  /** 区切りの余白を左に入れるスロットのインデックス（ボードメモでフロップ|ターン|リバーを分ける） */
+  groupStarts?: number[];
   /** このストリート以外ですでに使用されているカード（重複禁止用） */
   usedCards?: Card[];
   onCardChange: (idx: number, card: Card | null) => void;
@@ -40,7 +46,9 @@ function cardKey(card: Card) {
   return `${card.rank}${card.suit}`;
 }
 
-export default function BoardInput({ street, cards, usedCards = [], onCardChange, onConfirm, onBack, confirmLabel = '確定' }: Props) {
+export default function BoardInput({
+  street, title, titleExtra, cards, groupStarts = [], usedCards = [], onCardChange, onConfirm, onBack, confirmLabel = '確定',
+}: Props) {
   // 現在入力中のスロット（0〜cards.length-1）、nullなら選択待ち
   const [activeSlot, setActiveSlot] = useState<number | null>(
     // 最初の空きスロットを自動選択
@@ -48,7 +56,7 @@ export default function BoardInput({ street, cards, usedCards = [], onCardChange
   );
   const [pendingRank, setPendingRank] = useState<Rank | null>(null);
 
-  const label = STREET_LABELS[street] ?? street;
+  const label = title ?? `${street ? STREET_LABELS[street] ?? street : ''}のカードを入力`;
   const allFilled = cards.every((c) => c !== null);
 
   // 使用済みカードのセット（外部 + このストリートの他スロット）
@@ -130,7 +138,7 @@ export default function BoardInput({ street, cards, usedCards = [], onCardChange
   return (
     <div className="board-input-wrap">
       <div className="board-input__title">
-        {label}のカードを入力
+        {label}
         {import.meta.env.DEV && (
           <button
             type="button"
@@ -141,6 +149,7 @@ export default function BoardInput({ street, cards, usedCards = [], onCardChange
             rndm
           </button>
         )}
+        {titleExtra}
       </div>
 
       {/* カードスロット群 */}
@@ -152,7 +161,7 @@ export default function BoardInput({ street, cards, usedCards = [], onCardChange
             <button
               key={i}
               type="button"
-              className={`board-slot ${isActive ? 'board-slot--active' : ''} ${card ? 'board-slot--filled' : ''}`}
+              className={`board-slot ${isActive ? 'board-slot--active' : ''} ${card ? 'board-slot--filled' : ''} ${groupStarts.includes(i) ? 'board-slot--group-start' : ''}`}
               onClick={() => handleSlotClick(i)}
             >
               {disp ? (

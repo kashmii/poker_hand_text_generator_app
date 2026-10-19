@@ -13,6 +13,7 @@ import (
 
 	"github.com/kashmii/poker_hand_text_generator_app/server/internal/auth"
 	"github.com/kashmii/poker_hand_text_generator_app/server/internal/db"
+	"github.com/kashmii/poker_hand_text_generator_app/server/internal/hand"
 )
 
 func main() {
@@ -52,7 +53,7 @@ func main() {
 
 	srv := &http.Server{
 		Addr:              ":" + port,
-		Handler:           newRouter(allowedOrigins, pool, verifier.Middleware),
+		Handler:           newRouter(allowedOrigins, pool, verifier.Middleware, hand.NewPgStore(pool)),
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 

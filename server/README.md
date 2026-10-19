@@ -53,6 +53,36 @@ Cloud Scheduler から毎日呼び、Supabase 無料プランの一時停止（7
 |---|---|
 | `GET /me` | ログイン中のユーザーIDを返す（`200 {"userId":"..."}`）。フロントのログインと JWT 検証がつながったかの確認用 |
 
+## ハンドの API
+
+すべてログインが必要（JWT がなければ `401`）。どの操作も JWT のユーザーIDで絞り込み、他人のハンドは「存在しない」と同じ `404` になる。
+
+| メソッド | パス | 内容 | 主な応答 |
+|---|---|---|---|
+| GET | `/hands` | 自分のハンドの概要を新しい順に返す（最大500件） | `200 {"hands":[...]}` |
+| GET | `/hands/{id}` | 自分のハンド1件（`data` に HandData） | `200` / `404` |
+| PUT | `/hands/{id}` | 作成または更新。本文はフロントの HandData をそのまま送る | `200`（概要） / `400` / `404` / `413` |
+| DELETE | `/hands/{id}` | 削除 | `204` / `404` |
+
+- `{id}` は UUID（フロントで `crypto.randomUUID()` で作る）。大文字は小文字にそろえる
+- `PUT` は同じIDで何度送っても結果が同じなので、通信に失敗したら再送してよい
+- `PUT` の本文から `title`・`session.venueName`・`session.date` だけを列に保存し、本文全体は `data`（jsonb）に入れる。jsonb はキーの順番や空白を整えて保存するので、取得した `data` は送ったものと中身は同じでも文字列としては一致しない
+- 本文の上限は 256KB
+
+## テスト
+
+```bash
+go test ./...
+```
+
+DB の SQL（`internal/hand` の `PgStore`）のテストは、手元の Postgres を指定したときだけ動く（指定しなければスキップ）。テーブルを作り直すので、**本番の Supabase には向けない**（URL に `supabase` を含むと実行を拒否する）。
+
+```bash
+docker run -d --rm --name poker-hand-testdb -e POSTGRES_PASSWORD=test -p 54329:5432 postgres:17-alpine
+TEST_DATABASE_URL="postgres://postgres:test@localhost:54329/postgres?sslmode=disable" go test -count=1 ./internal/hand/
+docker stop poker-hand-testdb
+```
+
 ## DB のマイグレーション
 
 `migrations/` の SQL を番号順に、手で1回ずつ適用する（`-1` で1つのトランザクションとして実行し、失敗したら全部取り消す）。

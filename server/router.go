@@ -2,13 +2,14 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"log"
 	"net/http"
 	"slices"
 	"time"
 
 	"github.com/kashmii/poker_hand_text_generator_app/server/internal/auth"
+	"github.com/kashmii/poker_hand_text_generator_app/server/internal/hand"
+	"github.com/kashmii/poker_hand_text_generator_app/server/internal/httpjson"
 )
 
 // pinger は DB に疎通確認できるもの（*pgxpool.Pool が満たす）。
@@ -19,17 +20,18 @@ type pinger interface {
 
 // newRouter はルーティングとミドルウェアを組み立てた http.Handler を返す。
 // requireAuth はログイン済み（JWT が正しい）リクエストだけを通すミドルウェア
-func newRouter(allowedOrigins []string, db pinger, requireAuth func(http.Handler) http.Handler) http.Handler {
+func newRouter(allowedOrigins []string, db pinger, requireAuth func(http.Handler) http.Handler, hands hand.Store) http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /health", handleHealth(db))
 	mux.Handle("GET /me", requireAuth(http.HandlerFunc(handleMe)))
+	hand.NewHandler(hands).Register(mux, requireAuth)
 	return withCORS(allowedOrigins, mux)
 }
 
 // handleMe はログイン中のユーザーIDを返す。フロントのログインと JWT 検証がつながったかの確認用
 func handleMe(w http.ResponseWriter, r *http.Request) {
 	userID, _ := auth.UserID(r.Context())
-	writeJSON(w, http.StatusOK, map[string]string{"userId": userID})
+	httpjson.Write(w, http.StatusOK, map[string]string{"userId": userID})
 }
 
 // handleHealth は死活確認用。DB まで届くかも確かめる。
@@ -41,17 +43,11 @@ func handleHealth(db pinger) http.HandlerFunc {
 
 		if err := db.Ping(ctx); err != nil {
 			log.Printf("health: db ping failed: %v", err)
-			writeJSON(w, http.StatusServiceUnavailable, map[string]string{"status": "ng", "db": "error"})
+			httpjson.Write(w, http.StatusServiceUnavailable, map[string]string{"status": "ng", "db": "error"})
 			return
 		}
-		writeJSON(w, http.StatusOK, map[string]string{"status": "ok", "db": "ok"})
+		httpjson.Write(w, http.StatusOK, map[string]string{"status": "ok", "db": "ok"})
 	}
-}
-
-func writeJSON(w http.ResponseWriter, status int, v any) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(v)
 }
 
 // withCORS は許可したオリジン（Vercel のフロントなど）からのブラウザアクセスだけを通す

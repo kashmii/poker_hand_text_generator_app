@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/kashmii/poker_hand_text_generator_app/server/internal/auth/authtest"
+	"github.com/kashmii/poker_hand_text_generator_app/server/internal/hand/handtest"
 )
 
 // fakeDB は Ping の結果を固定で返す偽の DB
@@ -20,7 +21,7 @@ func (f fakeDB) Ping(ctx context.Context) error { return f.err }
 func testRouter(t *testing.T, allowedOrigins []string, db pinger) (http.Handler, *authtest.Issuer) {
 	t.Helper()
 	iss := authtest.New(t, authtest.DefaultIssuer)
-	return newRouter(allowedOrigins, db, iss.Verifier().Middleware), iss
+	return newRouter(allowedOrigins, db, iss.Verifier().Middleware, handtest.NewMemStore()), iss
 }
 
 func TestHealth(t *testing.T) {

@@ -3,7 +3,6 @@ package auth
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
@@ -14,6 +13,8 @@ import (
 
 	"github.com/MicahParks/keyfunc/v3"
 	"github.com/golang-jwt/jwt/v5"
+
+	"github.com/kashmii/poker_hand_text_generator_app/server/internal/httpjson"
 )
 
 // Audience はログイン済みユーザーの JWT に入る aud（対象）。
@@ -102,9 +103,7 @@ func bearerToken(header string) (string, bool) {
 
 func unauthorized(w http.ResponseWriter) {
 	w.Header().Set("WWW-Authenticate", "Bearer")
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusUnauthorized)
-	_ = json.NewEncoder(w).Encode(map[string]string{"error": "unauthorized"})
+	httpjson.Error(w, http.StatusUnauthorized, "unauthorized")
 }
 
 type userIDKey struct{}

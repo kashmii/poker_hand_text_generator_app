@@ -9,15 +9,16 @@ DB の接続文字列はファイルに書かず、Secret Manager から取り�
 ```bash
 go test ./...
 export DATABASE_URL="$(gcloud secrets versions access latest --secret=database-url)"
+export SUPABASE_URL=https://unladtbjtiqzjhndlbyf.supabase.co
 PORT=8080 ALLOWED_ORIGINS=http://localhost:5173 go run .
 curl localhost:8080/health   # {"db":"ok","status":"ok"}
 ```
 
-Docker で動かす場合（`DATABASE_URL` は上と同じく export 済みの前提）:
+Docker で動かす場合（`DATABASE_URL` と `SUPABASE_URL` は上と同じく export 済みの前提）:
 
 ```bash
 docker build -t poker-hand-server:local .
-docker run --rm -p 8080:8080 -e DATABASE_URL -e ALLOWED_ORIGINS=http://localhost:5173 poker-hand-server:local
+docker run --rm -p 8080:8080 -e DATABASE_URL -e SUPABASE_URL -e ALLOWED_ORIGINS=http://localhost:5173 poker-hand-server:local
 ```
 
 ## 環境変数
@@ -27,6 +28,7 @@ docker run --rm -p 8080:8080 -e DATABASE_URL -e ALLOWED_ORIGINS=http://localhost
 | `PORT` | 待ち受けポート（Cloud Run が自動で設定する） | `8080` |
 | `ALLOWED_ORIGINS` | ブラウザからのアクセスを許可するオリジン（カンマ区切り） | `http://localhost:5173,https://xxx.vercel.app` |
 | `DATABASE_URL` | Supabase の接続文字列（Session pooler）。必須。Cloud Run では Secret Manager の `database-url` から渡す | — |
+| `SUPABASE_URL` | Supabase のプロジェクトURL。必須。JWT 検証用の公開鍵（`/auth/v1/.well-known/jwks.json`）の取得先と、発行元（`/auth/v1`）の確認に使う | `https://unladtbjtiqzjhndlbyf.supabase.co` |
 
 ## `/health`
 
@@ -36,6 +38,20 @@ docker run --rm -p 8080:8080 -e DATABASE_URL -e ALLOWED_ORIGINS=http://localhost
 | DB につながらない | `503 {"db":"error","status":"ng"}`（原因はサーバーのログに出る） |
 
 Cloud Scheduler から毎日呼び、Supabase 無料プランの一時停止（7日間アクセスなし）を防ぐ役目もある（設定は「Cloud Scheduler（毎日の /health）」を参照）。
+
+## 認証（JWT 検証）
+
+ログインが必要な API は、`Authorization: Bearer <JWT>` を `internal/auth` で検証する。
+
+- 検証すること: 署名（Supabase の公開鍵。ES256 / RS256 のみ受け付ける）、有効期限、発行元（`iss`）、対象（`aud` = `authenticated`）、`sub` が UUID であること
+- 通ったら `sub`（ユーザーID）を context に入れ、ハンドラーは `auth.UserID(ctx)` で取り出す
+- だめなら `401 {"error":"unauthorized"}`
+- 公開鍵は起動時に取得し、1時間ごとに更新する
+- テストでは `internal/auth/authtest` でテスト用の鍵を作り、Supabase と同じ形式の JWT を発行する
+
+| API | 内容 |
+|---|---|
+| `GET /me` | ログイン中のユーザーIDを返す（`200 {"userId":"..."}`）。フロントのログインと JWT 検証がつながったかの確認用 |
 
 ## DB のマイグレーション
 
@@ -105,11 +121,17 @@ gcloud run deploy poker-hand-server \
   --source . \
   --allow-unauthenticated \
   --max-instances 1 \
-  --set-env-vars "^@^ALLOWED_ORIGINS=http://localhost:5173,https://pokerhandtextgeneratorapp.vercel.app" \
+  --set-env-vars "^@^ALLOWED_ORIGINS=http://localhost:5173,https://pokerhandtextgeneratorapp.vercel.app@SUPABASE_URL=https://unladtbjtiqzjhndlbyf.supabase.co" \
   --set-secrets "DATABASE_URL=database-url:latest"
 ```
 
-- `^@^`: gcloud は通常カンマを環境変数の区切りとして扱うため、区切り文字を `@` に変えて値の中のカンマをそのまま渡す
+- `^@^`: gcloud は通常カンマを環境変数の区切りとして扱うため、区切り文字を `@` に変えて値の中のカンマをそのまま渡す（複数の環境変数は `@` で区切る）
+- **`SUPABASE_URL` がないとサーバーは起動しない。** JWT 検証を入れる前の設定のままのサービスにデプロイする場合は、先に追加しておく:
+
+  ```bash
+  gcloud run services update poker-hand-server \
+    --update-env-vars "SUPABASE_URL=https://unladtbjtiqzjhndlbyf.supabase.co"
+  ```
 - `--allow-unauthenticated`: ブラウザから直接呼べるようにする（ユーザーの認証は後で Go 側の JWT 検証で行う）
 - `--max-instances 1`: 大量アクセスがあっても台数を増やさず、請求額が膨らまないようにする
 - `--set-secrets`: Secret Manager の最新バージョンを環境変数 `DATABASE_URL` として渡す。値はインスタンスの起動時に読まれるので、シークレットを更新したら再デプロイ（または `gcloud run services update`）して反映する

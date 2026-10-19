@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"slices"
 	"time"
+
+	"github.com/kashmii/poker_hand_text_generator_app/server/internal/auth"
 )
 
 // pinger は DB に疎通確認できるもの（*pgxpool.Pool が満たす）。
@@ -15,11 +17,19 @@ type pinger interface {
 	Ping(ctx context.Context) error
 }
 
-// newRouter はルーティングとミドルウェアを組み立てた http.Handler を返す
-func newRouter(allowedOrigins []string, db pinger) http.Handler {
+// newRouter はルーティングとミドルウェアを組み立てた http.Handler を返す。
+// requireAuth はログイン済み（JWT が正しい）リクエストだけを通すミドルウェア
+func newRouter(allowedOrigins []string, db pinger, requireAuth func(http.Handler) http.Handler) http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /health", handleHealth(db))
+	mux.Handle("GET /me", requireAuth(http.HandlerFunc(handleMe)))
 	return withCORS(allowedOrigins, mux)
+}
+
+// handleMe はログイン中のユーザーIDを返す。フロントのログインと JWT 検証がつながったかの確認用
+func handleMe(w http.ResponseWriter, r *http.Request) {
+	userID, _ := auth.UserID(r.Context())
+	writeJSON(w, http.StatusOK, map[string]string{"userId": userID})
 }
 
 // handleHealth は死活確認用。DB まで届くかも確かめる。

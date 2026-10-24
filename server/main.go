@@ -51,6 +51,19 @@ func main() {
 		log.Fatalf("auth: %v", err)
 	}
 
+	// 個人用APIキー（MCPサーバー用）。両方そろったときだけ有効にし、片方だけなら設定ミスとして止める
+	personalKey := os.Getenv("PERSONAL_API_KEY")
+	personalUserID := os.Getenv("PERSONAL_USER_ID")
+	switch {
+	case personalKey != "" && personalUserID != "":
+		if err := verifier.SetPersonalKey(personalKey, personalUserID); err != nil {
+			log.Fatalf("auth: %v", err)
+		}
+		log.Println("auth: personal api key enabled")
+	case personalKey != "" || personalUserID != "":
+		log.Fatal("PERSONAL_API_KEY and PERSONAL_USER_ID must be set together")
+	}
+
 	srv := &http.Server{
 		Addr:              ":" + port,
 		Handler:           newRouter(allowedOrigins, pool, verifier.Middleware, hand.NewPgStore(pool)),

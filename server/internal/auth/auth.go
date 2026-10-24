@@ -1,8 +1,9 @@
-// Package auth は Supabase が発行した JWT を検証し、リクエストしたユーザーのIDを取り出す。
+// Package auth は Supabase が発行した JWT（または個人用APIキー）を検証し、リクエストしたユーザーのIDを取り出す。
 package auth
 
 import (
 	"context"
+	"crypto/subtle"
 	"errors"
 	"fmt"
 	"log"
@@ -26,10 +27,17 @@ var validMethods = []string{"ES256", "RS256"}
 
 var uuidPattern = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
 
+// 個人用APIキーの最短の長さ。推測されにくいよう、短いキーは設定させない
+const minPersonalKeyLen = 32
+
 // Verifier は JWT の署名・有効期限・発行元・対象を検証する。
 type Verifier struct {
 	keyfunc jwt.Keyfunc
 	issuer  string
+
+	// 個人用APIキー（MCPサーバーから自分のハンドを読むため）。空なら無効
+	personalKey    []byte
+	personalUserID string
 }
 
 // NewSupabaseVerifier は Supabase の公開鍵一覧（JWKS）を使う Verifier を作る。
@@ -72,13 +80,42 @@ func (v *Verifier) Verify(tokenString string) (string, error) {
 	return claims.Subject, nil
 }
 
-// Middleware は Authorization: Bearer <JWT> を検証し、
+// SetPersonalKey は個人用APIキーを有効にする。
+// Bearer にこのキーが来たら JWT 検証をせず、userID のユーザーとして通す（GET/HEAD のみ）。
+func (v *Verifier) SetPersonalKey(apiKey, userID string) error {
+	if len(apiKey) < minPersonalKeyLen {
+		return fmt.Errorf("personal api key must be at least %d characters", minPersonalKeyLen)
+	}
+	if !uuidPattern.MatchString(userID) {
+		return errors.New("personal user id is not a uuid")
+	}
+	v.personalKey = []byte(apiKey)
+	v.personalUserID = userID
+	return nil
+}
+
+// isPersonalKey は token が個人用APIキーと一致するかを返す。
+// 一致するまでの時間からキーを推測されないよう、比較は一定時間で行う
+func (v *Verifier) isPersonalKey(token string) bool {
+	return len(v.personalKey) > 0 && subtle.ConstantTimeCompare([]byte(token), v.personalKey) == 1
+}
+
+// Middleware は Authorization: Bearer <JWT または個人用APIキー> を検証し、
 // 通ったらユーザーIDを context に入れて次へ渡す。だめなら 401 を返す。
 func (v *Verifier) Middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		token, ok := bearerToken(r.Header.Get("Authorization"))
 		if !ok {
 			unauthorized(w)
+			return
+		}
+		if v.isPersonalKey(token) {
+			// 個人用キーは設定ファイルに平文で置くので、漏れても読まれるだけで済むよう読み取りに限る
+			if r.Method != http.MethodGet && r.Method != http.MethodHead {
+				httpjson.Error(w, http.StatusForbidden, "forbidden")
+				return
+			}
+			next.ServeHTTP(w, r.WithContext(WithUserID(r.Context(), v.personalUserID)))
 			return
 		}
 		userID, err := v.Verify(token)

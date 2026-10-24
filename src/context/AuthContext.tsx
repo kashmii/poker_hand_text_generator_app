@@ -23,14 +23,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!supabase) return;
-    // 起動時: 保存済みのログイン状態を読む（Google から戻ってきた直後は ?code= をここで交換する）
-    supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session);
-      setLoading(false);
-    });
-    // ログイン・ログアウト・トークン更新のたびに呼ばれる
+    // 起動時: 保存済みのログイン状態を読む（Google から戻ってきた直後は ?code= をここで交換する）。
+    // 交換に失敗しても loading を必ず解除する（解除しないと AuthBar が何も表示されなくなる）
+    supabase.auth
+      .getSession()
+      .then(({ data }) => setSession(data.session))
+      .catch(() => undefined)
+      .finally(() => setLoading(false));
+    // ログイン・ログアウト・トークン更新のたびに呼ばれる。ここでも loading を解除しておく
     const { data } = supabase.auth.onAuthStateChange((_event, next) => {
       setSession(next);
+      setLoading(false);
     });
     return () => data.subscription.unsubscribe();
   }, []);

@@ -50,14 +50,24 @@ export default function SetupPage() {
   return (
     <>
       {import.meta.env.DEV && (
-        <button
-          type="button"
-          className="dev-dummy-btn"
-          onClick={handleLoadDummy}
-          title={`6人テーブル・${DUMMY_HAND_COUNT}ハンドのダミーデータをロードしてResult画面へ`}
-        >
-          🛠 DEV: Result画面を開く
-        </button>
+        <>
+          <button
+            type="button"
+            className="dev-dummy-btn"
+            onClick={handleLoadDummy}
+            title={`6人テーブル・${DUMMY_HAND_COUNT}ハンドのダミーデータをロードしてResult画面へ`}
+          >
+            🛠 DEV: Result画面を開く
+          </button>
+          <button
+            type="button"
+            className="dev-dummy-btn"
+            onClick={() => navigate('/dev/history')}
+            title="ログイン・APIなしで履歴画面の見た目を確認する"
+          >
+            🛠 DEV: 履歴画面（モック）を開く
+          </button>
+        </>
       )}
       <SessionSetup
         onStart={handleStart}

@@ -1,6 +1,13 @@
 import { useState } from 'react';
 import type { HandData, SessionConfig } from '../types/poker';
+import type { SyncState } from '../context/AppContext';
 import { generateHandText } from '../utils/formatHand';
+
+const SYNC_LABEL: Record<SyncState, string> = {
+  syncing: '送信中…',
+  synced: '同期済み',
+  unsynced: '未同期',
+};
 
 interface Props {
   hands: HandData[];
@@ -9,6 +16,10 @@ interface Props {
   onEditSettings: () => void;
   onDeleteHand: (id: string) => void;
   onUpdateHand: (hand: HandData) => void;
+  /** ハンドごとの同期状態。未ログインのハンドは入っていない */
+  syncStatus?: Record<string, SyncState>;
+  /** 未同期ハンドの再送 */
+  onResend?: (id: string) => void;
 }
 
 export default function HandReview({
@@ -18,6 +29,8 @@ export default function HandReview({
   onEditSettings,
   onDeleteHand,
   onUpdateHand,
+  syncStatus = {},
+  onResend,
 }: Props) {
   const [openHandId, setOpenHandId] = useState<string | null>(
     hands.length > 0 ? hands[hands.length - 1].id : null
@@ -79,6 +92,7 @@ export default function HandReview({
           <div className="hand-accordion">
             {hands.map((h) => {
               const isOpen = openHandId === h.id;
+              const sync = syncStatus[h.id];
               const streetLabel = h.streets.flop
                 ? h.streets.turn
                   ? h.streets.river ? 'River' : 'Turn'
@@ -146,8 +160,28 @@ export default function HandReview({
                       )}
                     </div>
 
-                    {/* 削除ボタン */}
+                    {/* 同期状態（ログイン中に保存したハンドのみ）＋削除ボタン */}
                     <div className="accordion-header__actions">
+                      {sync && (
+                        <span
+                          className={`sync-badge sync-badge--${sync}`}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          {SYNC_LABEL[sync]}
+                          {sync === 'unsynced' && onResend && (
+                            <button
+                              type="button"
+                              className="btn-resend"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onResend(h.id);
+                              }}
+                            >
+                              再送
+                            </button>
+                          )}
+                        </span>
+                      )}
                       <button
                         type="button"
                         className="btn-delete"

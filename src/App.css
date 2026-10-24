@@ -894,6 +894,127 @@ input[type='radio'] {
 
 .accordion-header__actions {
   flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+/* DB同期状態のバッジ（結果画面に小さく表示） */
+.sync-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.65rem;
+  line-height: 1;
+  padding: 0.2rem 0.4rem;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+.sync-badge--syncing {
+  color: var(--color-text-muted);
+  background: var(--color-surface);
+}
+.sync-badge--synced {
+  color: #2e7d32;
+  background: rgba(46, 125, 50, 0.12);
+}
+.sync-badge--unsynced {
+  color: #c62828;
+  background: rgba(198, 40, 40, 0.12);
+}
+.btn-resend {
+  font-size: 0.65rem;
+  line-height: 1;
+  padding: 0.15rem 0.35rem;
+  border: 1px solid currentColor;
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+.btn-resend:hover {
+  background: rgba(198, 40, 40, 0.18);
+}
+
+/* 保存した履歴（/history） */
+.history {
+  padding: 1rem;
+  max-width: 720px;
+  margin: 0 auto;
+}
+.history__header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+.history__header h2 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+.history-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.history-item {
+  width: 100%;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  padding: 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-surface);
+  color: inherit;
+  cursor: pointer;
+}
+.history-item:hover {
+  border-color: var(--color-accent, #4a90d9);
+}
+.history-item__meta {
+  font-size: 0.7rem;
+  color: var(--color-text-muted);
+}
+.history-item__title {
+  font-size: 0.95rem;
+}
+.history-item__cards {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 0.25rem;
+}
+.history-item__cards-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+.history-item__cards-label {
+  font-size: 0.65rem;
+  color: var(--color-text-muted);
+}
+.pcards {
+  display: inline-flex;
+  gap: 0.2rem;
+}
+.pcard {
+  font-size: 0.8rem;
+  font-weight: 600;
+  line-height: 1;
+  padding: 0.15rem 0.3rem;
+  border-radius: 3px;
+  background: #fff;
+  color: #1a1a1a;
+  border: 1px solid var(--color-border);
+}
+.pcard--h,
+.pcard--d {
+  color: #e53e3e;
 }
 
 .accordion-chevron {
@@ -1927,4 +2048,76 @@ input[type='radio'] {
 }
 .hand-end__confirm {
   flex: 2;
+}
+
+/* ===== AUTH（ログイン） ===== */
+.auth-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem 0.75rem;
+  padding: 0.6rem 1rem;
+  background: var(--color-surface2);
+  border-bottom: 1px solid var(--color-border);
+  font-size: 0.85rem;
+}
+
+.auth-bar--notice {
+  flex-direction: column;
+  text-align: center;
+  line-height: 1.5;
+}
+
+.auth-bar__status {
+  color: var(--color-text-muted);
+}
+
+.auth-bar__status strong {
+  color: var(--color-text);
+  font-weight: 600;
+}
+
+.auth-bar__error {
+  width: 100%;
+  text-align: center;
+  color: var(--color-danger);
+}
+
+.auth-bar__dev {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  width: 100%;
+}
+
+.auth-bar__dev-result {
+  color: var(--color-text-muted);
+  font-size: 0.8rem;
+  word-break: break-all;
+}
+
+.btn-auth {
+  display: inline-block;
+  background: #fff;
+  color: #1f2937;
+  font-weight: 600;
+  padding: 0.45rem 0.9rem;
+  border-radius: var(--radius);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.btn-auth:hover {
+  opacity: 0.9;
+}
+
+.btn-auth--sub {
+  background: transparent;
+  color: var(--color-text-muted);
+  border: 1px solid var(--color-border);
+  font-weight: normal;
+  padding: 0.3rem 0.7rem;
 }

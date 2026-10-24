@@ -29,7 +29,8 @@ interface Props {
 }
 
 function generateId() {
-  return Math.random().toString(36).slice(2, 9);
+  // DBの主キーにそのまま使い、再送しても二重登録にならないよう全ユーザーで一意なUUIDにする
+  return crypto.randomUUID();
 }
 
 const STREET_LABELS: Record<string, string> = {

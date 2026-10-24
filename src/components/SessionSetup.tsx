@@ -4,6 +4,7 @@ import { createDefaultPlayers } from '../context/AppContext';
 import { BLIND_PRESETS } from './setup/constants';
 import BlindSection from './setup/BlindSection';
 import PlayerSection from './setup/PlayerSection';
+import AuthBar from './auth/AuthBar';
 
 interface Props {
   onStart: (config: SessionConfig) => void;
@@ -85,6 +86,7 @@ export default function SessionSetup({ onStart, onUpdate, onViewResult, initialS
   return (
     <div className="session-setup">
       <h1 className="app-title">🃏 Poker Hand Logger</h1>
+      <AuthBar />
       {onViewResult && (
         <div className="setup-history-bar">
           <button type="button" className="btn-view-result" onClick={onViewResult}>

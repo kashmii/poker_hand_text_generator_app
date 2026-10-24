@@ -18,7 +18,7 @@ function formatCard(card: Card): string {
   return `${card.rank}${SUIT_SYMBOLS[card.suit] ?? card.suit}`;
 }
 
-export function formatCardsSpaced(cards: Card[]): string {
+function formatCardsSpaced(cards: Card[]): string {
   return cards.map(formatCard).join(' ');
 }
 

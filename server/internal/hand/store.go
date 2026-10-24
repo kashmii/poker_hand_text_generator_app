@@ -26,9 +26,18 @@ func NewPgStore(pool *pgxpool.Pool) *PgStore {
 // played_on は date 型。文字列（YYYY-MM-DD）でやり取りする
 const summaryColumns = `id, title, venue_name, played_on::text, created_at, updated_at`
 
+// listColumns は一覧用。概要に加えて、一覧でハンドを見分けられるよう
+// data(JSONB) からヒーローのホールカードと全ボード（flop+turn+river）を取り出す。
+// キーが無いハンドでも null / [] になるよう coalesce する。
+const listColumns = summaryColumns + `,
+	coalesce(data->'heroHoleCards', 'null'::jsonb),
+	coalesce(data#>'{streets,flop,board}', '[]'::jsonb)
+		|| coalesce(data#>'{streets,turn,board}', '[]'::jsonb)
+		|| coalesce(data#>'{streets,river,board}', '[]'::jsonb)`
+
 func (s *PgStore) List(ctx context.Context, userID string) ([]Summary, error) {
 	rows, err := s.pool.Query(ctx, `
-		select `+summaryColumns+`
+		select `+listColumns+`
 		from hands
 		where user_id = $1
 		order by created_at desc
@@ -38,7 +47,8 @@ func (s *PgStore) List(ctx context.Context, userID string) ([]Summary, error) {
 	}
 	summaries, err := pgx.CollectRows(rows, func(row pgx.CollectableRow) (Summary, error) {
 		var h Summary
-		err := row.Scan(&h.ID, &h.Title, &h.VenueName, &h.PlayedOn, &h.CreatedAt, &h.UpdatedAt)
+		err := row.Scan(&h.ID, &h.Title, &h.VenueName, &h.PlayedOn, &h.CreatedAt, &h.UpdatedAt,
+			&h.HeroHoleCards, &h.Board)
 		return h, err
 	})
 	if err != nil {

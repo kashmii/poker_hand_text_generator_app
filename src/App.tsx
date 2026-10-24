@@ -4,6 +4,8 @@ import { AuthProvider } from './context/AuthContext';
 import SetupPage from './pages/SetupPage';
 import HandPage from './pages/HandPage';
 import ResultPage from './pages/ResultPage';
+import HistoryPage from './pages/HistoryPage';
+import HistoryDetailPage from './pages/HistoryDetailPage';
 import './App.css';
 
 export default function App() {
@@ -16,6 +18,8 @@ export default function App() {
               <Route path="/setup" element={<SetupPage />} />
               <Route path="/hand" element={<HandPage />} />
               <Route path="/result" element={<ResultPage />} />
+              <Route path="/history" element={<HistoryPage />} />
+              <Route path="/history/:id" element={<HistoryDetailPage />} />
               {/* ルート or 不明なパスはsetupへ */}
               <Route path="*" element={<Navigate to="/setup" replace />} />
             </Routes>

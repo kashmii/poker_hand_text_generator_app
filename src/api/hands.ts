@@ -1,9 +1,10 @@
-import type { HandData } from '../types/poker';
+import type { Card, HandData } from '../types/poker';
 import { apiFetch } from './client';
 
 /**
  * HandSummary は一覧表示用のハンドの概要。Go の hand.Summary と対応する。
  * playedOn はセッションの日付（YYYY-MM-DD）。不明なら null。
+ * heroHoleCards / board は一覧でハンドを見分けるための抜粋（一覧のときだけ入る）。
  */
 export interface HandSummary {
   id: string;
@@ -12,6 +13,8 @@ export interface HandSummary {
   playedOn: string | null;
   createdAt: string; // ISO 8601
   updatedAt: string; // ISO 8601
+  heroHoleCards?: Card[] | null;
+  board?: Card[];
 }
 
 /** Hand はハンド1件。概要に加えて data（HandData 丸ごと）を持つ。 */

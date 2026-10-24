@@ -21,6 +21,11 @@ type Summary struct {
 	PlayedOn  *string   `json:"playedOn"` // YYYY-MM-DD。不明なら null
 	CreatedAt time.Time `json:"createdAt"`
 	UpdatedAt time.Time `json:"updatedAt"`
+	// 一覧でハンドを見分けやすくするための抜粋（List のときだけ data から取り出して入れる）。
+	// HeroHoleCards はヒーローのホールカード（[{rank,suit},...] か null）、
+	// Board は flop/turn/river を連結した全ボード。Get/Upsert では空のまま。
+	HeroHoleCards json.RawMessage `json:"heroHoleCards,omitempty"`
+	Board         json.RawMessage `json:"board,omitempty"`
 }
 
 // Hand はハンド1件。Data にフロントの HandData を丸ごと持つ。

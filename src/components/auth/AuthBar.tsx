@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useApp } from '../../context/AppContext';
 import { getMe } from '../../api/client';
@@ -11,6 +12,7 @@ import { detectInAppBrowser, externalBrowserUrl, IN_APP_BROWSER_LABELS } from '.
 export default function AuthBar() {
   const { enabled, loading, session, signInWithGoogle, signOut } = useAuth();
   const { hands } = useApp();
+  const navigate = useNavigate();
   const [error, setError] = useState<string | null>(null);
   const [apiCheck, setApiCheck] = useState<string | null>(null);
 
@@ -41,6 +43,9 @@ export default function AuthBar() {
         <span className="auth-bar__status">
           ログイン中: <strong>{session.user.email ?? 'Google アカウント'}</strong>
         </span>
+        <button type="button" className="btn-auth btn-auth--sub" onClick={() => navigate('/history')}>
+          保存した履歴
+        </button>
         <button type="button" className="btn-auth btn-auth--sub" onClick={handleSignOut}>
           ログアウト
         </button>
@@ -99,7 +104,7 @@ export default function AuthBar() {
       <button type="button" className="btn-auth" onClick={handleSignIn}>
         Google でログイン
       </button>
-      <span className="hint">ログインすると、ハンドを保存して後から見返せます（準備中）</span>
+      <span className="hint">ログインすると、ハンドを保存して後から見返せます</span>
       {error && <p className="auth-bar__error">{error}</p>}
     </div>
   );

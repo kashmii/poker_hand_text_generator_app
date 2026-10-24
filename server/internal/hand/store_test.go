@@ -177,3 +177,47 @@ func TestPgStore(t *testing.T) {
 		t.Error("Upsert by unknown user succeeded")
 	}
 }
+
+// TestPgStoreListCards は、一覧が data(JSONB) から
+// ヒーローのホールカードと全ボード（flop+turn+river 連結）を取り出すことを確かめる。
+func TestPgStoreListCards(t *testing.T) {
+	s := newTestPgStore(t)
+	ctx := t.Context()
+	id := "22222222-0000-4000-8000-000000000001"
+	data := `{"id":"` + id + `","handNumber":1,` +
+		`"heroHoleCards":[{"rank":"A","suit":"s"},{"rank":"K","suit":"h"}],` +
+		`"streets":{"preflop":{"actions":[]},` +
+		`"flop":{"actions":[],"board":[{"rank":"Q","suit":"d"},{"rank":"J","suit":"c"},{"rank":"T","suit":"s"}]},` +
+		`"turn":{"actions":[],"board":[{"rank":"2","suit":"h"}]},` +
+		`"river":{"actions":[],"board":[{"rank":"7","suit":"c"}]}},` +
+		`"pot":40,"winners":[]}`
+	if _, err := s.Upsert(ctx, userA, input(id, "カード付き", data)); err != nil {
+		t.Fatal(err)
+	}
+
+	list, err := s.List(ctx, userA)
+	if err != nil {
+		t.Fatalf("List() error = %v", err)
+	}
+	var got *hand.Summary
+	for i := range list {
+		if list[i].ID == id {
+			got = &list[i]
+			break
+		}
+	}
+	if got == nil {
+		t.Fatalf("hand %s not in list", id)
+	}
+
+	wantHole := `[{"rank":"A","suit":"s"},{"rank":"K","suit":"h"}]`
+	if !sameJSON(t, got.HeroHoleCards, []byte(wantHole)) {
+		t.Errorf("HeroHoleCards = %s, want %s", got.HeroHoleCards, wantHole)
+	}
+	// flop → turn → river の順に連結される
+	wantBoard := `[{"rank":"Q","suit":"d"},{"rank":"J","suit":"c"},{"rank":"T","suit":"s"},` +
+		`{"rank":"2","suit":"h"},{"rank":"7","suit":"c"}]`
+	if !sameJSON(t, got.Board, []byte(wantBoard)) {
+		t.Errorf("Board = %s, want %s", got.Board, wantBoard)
+	}
+}

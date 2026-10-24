@@ -17,7 +17,7 @@ export default function PrivacyPage() {
       </div>
 
       <p>
-        Poker Hand Logger（以下「本アプリ」）は、利用者の情報を以下のとおり取り扱います。
+        Poker Hand Text Generator（以下「本アプリ」）は、利用者の情報を以下のとおり取り扱います。
       </p>
 
       <section>

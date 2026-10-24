@@ -101,6 +101,11 @@ func TestMiddleware(t *testing.T) {
 	})
 	h := iss.Verifier().Middleware(next)
 
+	// Supabase の OAuth サーバーが MCP クライアントに発行したトークン（client_id 付き）
+	oauthClaims := iss.Claims(userID)
+	oauthClaims["client_id"] = "9a8b7c6d-5e4f-4a2b-8c0d-9e8f7a6b5c4d"
+	oauthToken := iss.Sign(t, oauthClaims)
+
 	tests := []struct {
 		name       string
 		header     string
@@ -113,6 +118,7 @@ func TestMiddleware(t *testing.T) {
 		{"Bearer 以外の方式", "Basic dXNlcjpwYXNz", http.StatusUnauthorized, "{\"error\":\"unauthorized\"}\n"},
 		{"トークンが空", "Bearer ", http.StatusUnauthorized, "{\"error\":\"unauthorized\"}\n"},
 		{"不正なトークン", "Bearer not-a-jwt", http.StatusUnauthorized, "{\"error\":\"unauthorized\"}\n"},
+		{"MCP クライアント向けのトークンは使えない", "Bearer " + oauthToken, http.StatusUnauthorized, "{\"error\":\"unauthorized\"}\n"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

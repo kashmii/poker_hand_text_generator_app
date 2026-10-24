@@ -142,14 +142,21 @@ func (v *Verifier) Middleware(next http.Handler) http.Handler {
 			next.ServeHTTP(w, r.WithContext(WithUserID(r.Context(), v.personalUserID)))
 			return
 		}
-		userID, err := v.Verify(token)
+		c, err := v.VerifyClaims(token)
 		if err != nil {
 			// トークン自体はログに出さない
 			log.Printf("auth: invalid token: %v", err)
 			unauthorized(w)
 			return
 		}
-		next.ServeHTTP(w, r.WithContext(WithUserID(r.Context(), userID)))
+		// OAuth で MCP クライアント（Claude など）に発行したトークンは /mcp 専用。
+		// 同意画面で「読み取りだけ」と約束しているので、ここ（書き込みもできる API）では受け付けない
+		if c.ClientID != "" {
+			log.Printf("auth: oauth client token is not allowed here")
+			unauthorized(w)
+			return
+		}
+		next.ServeHTTP(w, r.WithContext(WithUserID(r.Context(), c.UserID)))
 	})
 }
 

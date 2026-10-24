@@ -1,5 +1,10 @@
 import { createContext, useContext, useState, useCallback, type ReactNode } from 'react';
 import type { AppSettings, SessionConfig, HandData, Player } from '../types/poker';
+import { useAuth } from './AuthContext';
+import { putHand, deleteHand as deleteHandApi } from '../api/hands';
+
+// ハンド1件のDBへの同期状態。未ログインのハンドは状態を持たない（表示もしない）
+export type SyncState = 'syncing' | 'synced' | 'unsynced';
 
 // ========== デフォルト値 ==========
 const defaultSettings: AppSettings = {
@@ -34,6 +39,10 @@ interface AppContextValue {
   updateSession: (patch: Partial<SessionConfig>) => void;
   saveHand: (hand: HandData) => void;
   deleteHand: (id: string) => void;
+  /** ハンドごとのDB同期状態。ログイン中に保存したものだけ入る */
+  syncStatus: Record<string, SyncState>;
+  /** 未同期のハンドを再送する（PUTなので何度送っても安全） */
+  resendHand: (id: string) => void;
   incrementHandCounter: () => void;
   /** DEV専用: セッション設定とハンド履歴を一括ロード */
   loadDummyData: (session: SessionConfig, hands: HandData[]) => void;
@@ -43,11 +52,15 @@ const AppContext = createContext<AppContextValue | null>(null);
 
 // ========== Provider ==========
 export function AppProvider({ children }: { children: ReactNode }) {
+  const { session: authSession } = useAuth();
+  const isLoggedIn = authSession !== null;
+
   const [settings, setSettings] = useState<AppSettings>(defaultSettings);
   const [session, setSession] = useState<SessionConfig>(defaultSession);
   const [hands, setHands] = useState<HandData[]>([]);
   const [handCounter, setHandCounter] = useState(1);
   const [sessionReady, setSessionReady] = useState(false);
+  const [syncStatus, setSyncStatus] = useState<Record<string, SyncState>>({});
 
   const updateSettings = useCallback((patch: Partial<AppSettings>) => {
     setSettings((prev) => ({ ...prev, ...patch }));
@@ -64,7 +77,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setSession((prev) => ({ ...prev, ...patch }));
   }, []);
 
+  // ハンド1件をDBへ送る。成功で「同期済み」、失敗で「未同期」にする
+  const syncHand = useCallback(async (hand: HandData) => {
+    setSyncStatus((prev) => ({ ...prev, [hand.id]: 'syncing' }));
+    try {
+      await putHand(hand);
+      setSyncStatus((prev) => ({ ...prev, [hand.id]: 'synced' }));
+    } catch {
+      setSyncStatus((prev) => ({ ...prev, [hand.id]: 'unsynced' }));
+    }
+  }, []);
+
   const saveHand = useCallback((hand: HandData) => {
+    // まず手元を更新（通信失敗でも入力は失わない）
     setHands((prev) => {
       const idx = prev.findIndex((h) => h.id === hand.id);
       if (idx >= 0) {
@@ -74,11 +99,25 @@ export function AppProvider({ children }: { children: ReactNode }) {
       }
       return [...prev, hand];
     });
-  }, []);
+    // ログイン中なら自動でDBへ送る（タイトル編集もここを通る）
+    if (isLoggedIn) void syncHand(hand);
+  }, [isLoggedIn, syncHand]);
 
   const deleteHand = useCallback((id: string) => {
     setHands((prev) => prev.filter((h) => h.id !== id));
-  }, []);
+    setSyncStatus((prev) => {
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
+    // ログイン中はDBからも消す（失敗しても手元は消えたまま）
+    if (isLoggedIn) void deleteHandApi(id).catch(() => undefined);
+  }, [isLoggedIn]);
+
+  const resendHand = useCallback((id: string) => {
+    const hand = hands.find((h) => h.id === id);
+    if (hand && isLoggedIn) void syncHand(hand);
+  }, [hands, isLoggedIn, syncHand]);
 
   const incrementHandCounter = useCallback(() => {
     setHandCounter((n) => n + 1);
@@ -104,6 +143,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         updateSession,
         saveHand,
         deleteHand,
+        syncStatus,
+        resendHand,
         incrementHandCounter,
         loadDummyData,
       }}

@@ -18,7 +18,7 @@ const TITLES = [
 ];
 
 function randomId() {
-  return Math.random().toString(36).slice(2, 9);
+  return crypto.randomUUID();
 }
 
 export function generateDummyHands(session: SessionConfig, startNumber: number, count: number): HandData[] {

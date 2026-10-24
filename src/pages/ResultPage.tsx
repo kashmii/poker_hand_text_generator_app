@@ -5,7 +5,7 @@ import HandReview from '../components/HandReview';
 import { generateDummyHands } from '../utils/generateDummyHands';
 
 export default function ResultPage() {
-  const { session, sessionReady, hands, handCounter, saveHand, deleteHand, incrementHandCounter, updateSession } = useApp();
+  const { session, sessionReady, hands, handCounter, saveHand, deleteHand, syncStatus, resendHand, incrementHandCounter, updateSession } = useApp();
   const navigate = useNavigate();
 
   // セッション未設定ならSetupへ
@@ -32,6 +32,8 @@ export default function ResultPage() {
         onEditSettings={() => navigate('/setup')}
         onDeleteHand={deleteHand}
         onUpdateHand={saveHand}
+        syncStatus={syncStatus}
+        onResend={resendHand}
       />
       {import.meta.env.DEV && (
         <div className="dev-toolbar">

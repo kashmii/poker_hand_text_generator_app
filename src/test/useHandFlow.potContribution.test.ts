@@ -309,6 +309,34 @@ describe('useHandFlow: pot・contribution 計算', () => {
       expect(result.current.state.pot).toBe(30);
     });
 
+    it('【回帰】フロップでベット後に全員フォールドしたら未コールのベットは獲得ポットに含まれない', () => {
+      const { result } = renderHook(() => useHandFlow(makeSession3way()));
+      goToFlop3way(result); // pot=30
+      expect(result.current.state.pot).toBe(30);
+
+      act(() => { result.current.commitAction('bet', 80); }); // SB bet (+80) → pot=110
+      expect(result.current.state.pot).toBe(110);
+      act(() => { result.current.commitAction('fold'); });     // BB fold
+      act(() => { result.current.commitAction('fold'); });     // BTN fold → fold勝ち
+
+      // 80 のベットは未コール → 返却され、獲得ポットはベット前の 30
+      expect(result.current.state.phase).toBe('winner');
+      expect(result.current.state.pot).toBe(30);
+    });
+
+    it('【回帰】プリフロップでレイズに全員フォールドしたら未コール分は返却される', () => {
+      const { result } = renderHook(() => useHandFlow(makeSession3way()));
+      skipHoleCards(result);
+
+      act(() => { result.current.commitAction('raise', 30); }); // BTN raise → pot=45
+      act(() => { result.current.commitAction('fold'); });        // SB fold
+      act(() => { result.current.commitAction('fold'); });        // BB fold → fold勝ち
+
+      // BTNの30のうちBB(10)を超える20が未コール → 返却。獲得ポットは SB5+BB10+BTN10=25
+      expect(result.current.state.phase).toBe('winner');
+      expect(result.current.state.pot).toBe(25);
+    });
+
     it('ターン開始時もcontributionsは0にリセットされpotは引き継がれる', () => {
       const { result } = renderHook(() => useHandFlow(makeSession3way()));
       goToFlop3way(result); // pot=30

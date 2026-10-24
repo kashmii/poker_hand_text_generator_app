@@ -200,8 +200,24 @@ export function useHandFlow(session: SessionConfig) {
 
     // アクティブ1人以下 → fold勝ち → winner選択へ
     if (activePlayers.length <= 1) {
+      // 全員フォールドで勝った場合、勝者のベットのうちコールされなかった分は
+      // ポットに入らず勝者へ戻る（例: 誰かが80ベット→全員fold なら 80 は返却）。
+      // 返却額 = 勝者の当該ストリート拠出 − 他プレイヤー（fold含む）の最大拠出。
+      let pot = newState.pot;
+      const winnerId = activePlayers[0];
+      if (winnerId !== undefined) {
+        const contribs = newState.contributions;
+        const winnerContrib = contribs[winnerId] ?? 0;
+        const maxOther = playerIds.reduce(
+          (m, id) => (id !== winnerId ? Math.max(m, contribs[id] ?? 0) : m),
+          0,
+        );
+        const uncalled = Math.max(0, winnerContrib - maxOther);
+        pot = newState.pot - uncalled;
+      }
       return {
         ...newState,
+        pot,
         phase: 'winner',
         showdownQueue: [],
         showdownRecords: [],

@@ -3,25 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { listHands, type HandSummary } from '../api/hands';
 import { ApiError } from '../api/client';
-import type { Card } from '../types/poker';
 import AuthBar from '../components/auth/AuthBar';
-
-const SUIT_SYMBOLS: Record<Card['suit'], string> = { h: '♥', d: '♦', c: '♣', s: '♠' };
-
-/** カードを色付きチップで並べて表示する（♥♦は赤）。 */
-function Cards({ cards }: { cards?: Card[] | null }) {
-  if (!cards || cards.length === 0) return null;
-  return (
-    <span className="pcards">
-      {cards.map((c, i) => (
-        <span key={i} className={`pcard pcard--${c.suit}`}>
-          {c.rank}
-          {SUIT_SYMBOLS[c.suit]}
-        </span>
-      ))}
-    </span>
-  );
-}
+import HistoryList from '../components/HistoryList';
 
 /** /history : DBに保存した自分のハンド一覧（新しい順）。ログイン必須。 */
 export default function HistoryPage() {
@@ -70,41 +53,7 @@ export default function HistoryPage() {
       ) : error ? (
         <p className="auth-bar__error">{error}</p>
       ) : hands && hands.length > 0 ? (
-        <ul className="history-list">
-          {hands.map((h) => (
-            <li key={h.id}>
-              <button
-                type="button"
-                className="history-item"
-                onClick={() => navigate(`/history/${h.id}`)}
-              >
-                <span className="history-item__meta">
-                  {h.playedOn ?? h.createdAt.slice(0, 10)}
-                  {h.venueName && <> ・ {h.venueName}</>}
-                </span>
-                <span className="history-item__title">
-                  {h.title || <span className="hand-title--placeholder">（タイトルなし）</span>}
-                </span>
-                {(h.heroHoleCards?.length || h.board?.length) ? (
-                  <span className="history-item__cards">
-                    {h.heroHoleCards?.length ? (
-                      <span className="history-item__cards-group">
-                        <span className="history-item__cards-label">手札</span>
-                        <Cards cards={h.heroHoleCards} />
-                      </span>
-                    ) : null}
-                    {h.board?.length ? (
-                      <span className="history-item__cards-group">
-                        <span className="history-item__cards-label">ボード</span>
-                        <Cards cards={h.board} />
-                      </span>
-                    ) : null}
-                  </span>
-                ) : null}
-              </button>
-            </li>
-          ))}
-        </ul>
+        <HistoryList hands={hands} onOpen={(id) => navigate(`/history/${id}`)} />
       ) : (
         <div className="empty-state">
           <p>保存されたハンドはまだありません。</p>

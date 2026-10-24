@@ -6,6 +6,7 @@ import HandPage from './pages/HandPage';
 import ResultPage from './pages/ResultPage';
 import HistoryPage from './pages/HistoryPage';
 import HistoryDetailPage from './pages/HistoryDetailPage';
+import DevHistoryPage from './pages/DevHistoryPage';
 import './App.css';
 
 export default function App() {
@@ -20,6 +21,8 @@ export default function App() {
               <Route path="/result" element={<ResultPage />} />
               <Route path="/history" element={<HistoryPage />} />
               <Route path="/history/:id" element={<HistoryDetailPage />} />
+              {/* DEV 専用: ログイン・API なしで履歴画面の見た目を確認する（本番ではsetupへ流れる） */}
+              {import.meta.env.DEV && <Route path="/dev/history" element={<DevHistoryPage />} />}
               {/* ルート or 不明なパスはsetupへ */}
               <Route path="*" element={<Navigate to="/setup" replace />} />
             </Routes>

@@ -936,7 +936,7 @@ input[type='radio'] {
   background: rgba(198, 40, 40, 0.18);
 }
 
-/* 保存した履歴（/history） */
+/* 過去ハンド一覧（/history） */
 .history {
   padding: 1rem;
   max-width: 720px;
@@ -1623,6 +1623,10 @@ input[type='radio'] {
   opacity: 1;
   border-color: #94a3b8;
   color: #e2e8f0;
+}
+/* 2つ目のDEVボタンは1つ目に重ならないよう上に置く */
+.dev-dummy-btn--second {
+  bottom: 3.75rem;
 }
 
 /* 開発用ランダム入力ボタン */

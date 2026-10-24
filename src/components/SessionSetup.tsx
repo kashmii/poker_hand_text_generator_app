@@ -79,7 +79,7 @@ export default function SessionSetup({ onStart, onUpdate, onViewResult, initialS
 
   // 新しいセッションを開始（確認あり）
   const handleNewSession = () => {
-    if (!confirm('現在のハンド履歴はすべて削除されます。新しいセッションを開始しますか？')) return;
+    if (!confirm('現在のハンド一覧はすべて削除されます。新しいセッションを開始しますか？')) return;
     onStart(buildConfig());
   };
 
@@ -90,7 +90,7 @@ export default function SessionSetup({ onStart, onUpdate, onViewResult, initialS
       {onViewResult && (
         <div className="setup-history-bar">
           <button type="button" className="btn-view-result" onClick={onViewResult}>
-            📋 ハンド履歴を見る
+            📋 ハンド一覧を見る
           </button>
         </div>
       )}

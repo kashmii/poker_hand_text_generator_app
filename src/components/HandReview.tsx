@@ -20,6 +20,8 @@ interface Props {
   syncStatus?: Record<string, SyncState>;
   /** 未同期ハンドの再送 */
   onResend?: (id: string) => void;
+  /** 過去ハンド一覧へ（ログイン中のみ渡される） */
+  onOpenHistory?: () => void;
 }
 
 export default function HandReview({
@@ -31,6 +33,7 @@ export default function HandReview({
   onUpdateHand,
   syncStatus = {},
   onResend,
+  onOpenHistory,
 }: Props) {
   const [openHandId, setOpenHandId] = useState<string | null>(
     hands.length > 0 ? hands[hands.length - 1].id : null
@@ -69,8 +72,13 @@ export default function HandReview({
   return (
     <div className="hand-review">
       <div className="hand-review__header">
-        <h2>ハンド履歴</h2>
+        <h2>ハンド一覧</h2>
         <div className="header-actions">
+          {onOpenHistory && (
+            <button type="button" className="btn-secondary" onClick={onOpenHistory}>
+              過去ハンド一覧
+            </button>
+          )}
           <button type="button" className="btn-secondary" onClick={onEditSettings}>
             設定
           </button>

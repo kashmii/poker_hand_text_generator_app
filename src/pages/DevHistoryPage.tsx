@@ -148,7 +148,7 @@ export default function DevHistoryPage() {
         <button type="button" className="btn-secondary" onClick={() => navigate('/setup')}>
           ← 戻る
         </button>
-        <h2>保存した履歴（モック）</h2>
+        <h2>過去ハンド一覧（モック）</h2>
       </div>
       <p className="hint">これは DEV 専用のモック表示です（ログイン・API なし）。</p>
       <HistoryList

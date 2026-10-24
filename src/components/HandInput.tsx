@@ -265,7 +265,7 @@ export default function HandInput({ session, handNumber, onSave, onCancel, onUpd
             type="button"
             className="btn-view-result"
             onClick={() => {
-              if (confirm('入力中のデータは失われますが、ハンド履歴へ移動しますか？')) {
+              if (confirm('入力中のデータは失われますが、ハンド一覧へ移動しますか？')) {
                 onViewResult();
               }
             }}

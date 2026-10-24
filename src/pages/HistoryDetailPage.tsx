@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { getHand, deleteHand, type Hand } from '../api/hands';
 import { ApiError } from '../api/client';
@@ -10,6 +10,8 @@ export default function HistoryDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { loading: authLoading, session } = useAuth();
   const navigate = useNavigate();
+  // 一覧の「戻る」の行き先を保つため、一覧から受け取った state をそのまま返す
+  const listState = useLocation().state;
   const [hand, setHand] = useState<Hand | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -58,7 +60,7 @@ export default function HistoryDetailPage() {
     setDeleting(true);
     try {
       await deleteHand(id);
-      navigate('/history');
+      navigate('/history', { state: listState });
     } catch {
       setError('削除に失敗しました。');
       setDeleting(false);
@@ -68,7 +70,7 @@ export default function HistoryDetailPage() {
   return (
     <div className="history">
       <div className="history__header">
-        <button type="button" className="btn-secondary" onClick={() => navigate('/history')}>
+        <button type="button" className="btn-secondary" onClick={() => navigate('/history', { state: listState })}>
           ← 一覧へ
         </button>
         <h2>ハンド詳細</h2>

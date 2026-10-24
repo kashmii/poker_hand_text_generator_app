@@ -44,7 +44,7 @@ export default function AuthBar() {
           ログイン中: <strong>{session.user.email ?? 'Google アカウント'}</strong>
         </span>
         <button type="button" className="btn-auth btn-auth--sub" onClick={() => navigate('/history')}>
-          保存した履歴
+          過去ハンド一覧
         </button>
         <button type="button" className="btn-auth btn-auth--sub" onClick={handleSignOut}>
           ログアウト

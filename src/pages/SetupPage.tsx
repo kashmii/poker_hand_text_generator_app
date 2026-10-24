@@ -61,7 +61,7 @@ export default function SetupPage() {
           </button>
           <button
             type="button"
-            className="dev-dummy-btn"
+            className="dev-dummy-btn dev-dummy-btn--second"
             onClick={() => navigate('/dev/history')}
             title="ログイン・APIなしで履歴画面の見た目を確認する"
           >

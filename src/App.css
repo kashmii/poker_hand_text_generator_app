@@ -1018,6 +1018,45 @@ input[type='radio'] {
   margin-top: 1.5rem;
 }
 
+/* ===== OAUTH CONSENT ===== */
+.consent {
+  padding: 1.5rem 1rem;
+  line-height: 1.7;
+}
+.consent h2 {
+  margin-bottom: 1rem;
+}
+.consent__list {
+  padding-left: 1.25rem;
+  margin: 0.75rem 0;
+}
+.consent__switch {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--color-primary);
+  text-decoration: underline;
+  font-size: inherit;
+  cursor: pointer;
+}
+.consent__actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 1.25rem;
+}
+.consent__error {
+  color: var(--color-red);
+}
+.consent__legal {
+  margin-top: 2rem;
+  text-align: center;
+  font-size: 0.85em;
+}
+.consent__legal a {
+  color: var(--color-text-muted);
+}
+
 /* トップ画面の下に出す、プライバシーポリシーへのリンク */
 .setup-legal {
   padding: 1rem;

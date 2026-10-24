@@ -9,8 +9,11 @@ interface AuthContextValue {
   /** 起動直後、ログイン状態を確認している間は true */
   loading: boolean;
   session: Session | null;
-  /** Google のログイン画面へ移動する（ページ全体が移動するので、メモリ上の入力内容は消える） */
-  signInWithGoogle: () => Promise<void>;
+  /**
+   * Google のログイン画面へ移動する（ページ全体が移動するので、メモリ上の入力内容は消える）。
+   * ログイン後は今のパス（redirectPath を渡したらそのパス）へ戻る
+   */
+  signInWithGoogle: (redirectPath?: string) => Promise<void>;
   signOut: () => Promise<void>;
 }
 
@@ -38,12 +41,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => data.subscription.unsubscribe();
   }, []);
 
-  const signInWithGoogle = useCallback(async () => {
+  const signInWithGoogle = useCallback(async (redirectPath?: string) => {
     if (!supabase) return;
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       // ログイン後に今の画面へ戻る（Supabase の Redirect URLs に登録した URL のみ可）
-      options: { redirectTo: window.location.origin + window.location.pathname },
+      options: { redirectTo: window.location.origin + (redirectPath ?? window.location.pathname) },
     });
     if (error) throw error;
   }, []);

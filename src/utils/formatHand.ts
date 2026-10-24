@@ -42,10 +42,13 @@ function getPositionLabel(playerIdx: number, totalPlayers: number): string {
 }
 
 // ========== アクション文字列 ==========
+// currentBet: このアクション直前のストリート内ベット水準（コール必要額）。
+// オールインが bet / call / raise のどれに当たるかの判定に使う。
 function formatAction(
   action: Action,
   posLabel: string,
   currency: string,
+  currentBet: number,
 ): string {
   const c = currency;
   switch (action.type) {
@@ -59,13 +62,45 @@ function formatAction(
       return `${posLabel} bets ${c}${(action.amount ?? 0).toLocaleString()}`;
     case 'raise':
       return `${posLabel} raises ${c}${(action.amount ?? 0).toLocaleString()}`;
-    case 'allin':
-      return `${posLabel} raises ${c}${(action.amount ?? 0).toLocaleString()} and is all-in`;
+    case 'allin': {
+      const amt = action.amount ?? 0;
+      const amtStr = `${c}${amt.toLocaleString()}`;
+      // ストリート内に未ベット(currentBet<=0)で先頭オールイン → bet
+      // 既存ベットを超える → raise、超えない（＝ショート額でのコール）→ call
+      if (amt > currentBet) {
+        return currentBet <= 0
+          ? `${posLabel} bets ${amtStr} and is all-in`
+          : `${posLabel} raises ${amtStr} and is all-in`;
+      }
+      return `${posLabel} calls ${amtStr} and is all-in`;
+    }
     case 'straddle':
       return `${posLabel} straddles ${c}${(action.amount ?? 0).toLocaleString()}`;
     default:
       return '';
   }
+}
+
+// ストリート内のアクション列を、ベット水準を追跡しながら整形する。
+function formatStreetActions(
+  actions: Action[],
+  startBet: number,
+  posLabelWithHero: (id: string) => string,
+  currency: string,
+): string[] {
+  const out: string[] = [];
+  let bet = startBet;
+  actions.forEach((a) => {
+    const line = formatAction(a, posLabelWithHero(a.playerId), currency, bet);
+    if (line) out.push(line);
+    // ベット水準の更新
+    if (a.type === 'bet' || a.type === 'raise' || a.type === 'straddle') {
+      bet = a.amount ?? bet;
+    } else if (a.type === 'allin') {
+      if ((a.amount ?? 0) > bet) bet = a.amount ?? bet;
+    }
+  });
+  return out;
 }
 
 // ========== メイン出力生成 ==========
@@ -149,10 +184,8 @@ export function generateHandText(
   lines.push(
     `${posLabelWithHero(bbPlayer.id)} posts big blind ${c}${bigBlind.toLocaleString()}`,
   );
-  hand.streets.preflop.actions.forEach((a) => {
-    const line = formatAction(a, posLabelWithHero(a.playerId), c);
-    if (line) lines.push(line);
-  });
+  // プリフロップはBBがコール必要額の起点
+  lines.push(...formatStreetActions(hand.streets.preflop.actions, bigBlind, posLabelWithHero, c));
 
   // --- フロップ ---
   if (hand.streets.flop) {
@@ -164,10 +197,7 @@ export function generateHandText(
       : '';
     lines.push('');
     lines.push(`Flop (${flopPlayers} players, Pot size: ${preflopPot.toLocaleString()}) ${boardStr}`);
-    hand.streets.flop.actions.forEach((a) => {
-      const line = formatAction(a, posLabelWithHero(a.playerId), c);
-      if (line) lines.push(line);
-    });
+    lines.push(...formatStreetActions(hand.streets.flop.actions, 0, posLabelWithHero, c));
   }
 
   // --- ターン ---
@@ -180,10 +210,7 @@ export function generateHandText(
       : '';
     lines.push('');
     lines.push(`Turn (${turnPlayers} players, Pot size: ${turnPot.toLocaleString()}) ${boardStr}`);
-    hand.streets.turn.actions.forEach((a) => {
-      const line = formatAction(a, posLabelWithHero(a.playerId), c);
-      if (line) lines.push(line);
-    });
+    lines.push(...formatStreetActions(hand.streets.turn.actions, 0, posLabelWithHero, c));
   }
 
   // --- リバー ---
@@ -196,10 +223,7 @@ export function generateHandText(
       : '';
     lines.push('');
     lines.push(`River (${riverPlayers} players, Pot size: ${riverPot.toLocaleString()}) ${boardStr}`);
-    hand.streets.river.actions.forEach((a) => {
-      const line = formatAction(a, posLabelWithHero(a.playerId), c);
-      if (line) lines.push(line);
-    });
+    lines.push(...formatStreetActions(hand.streets.river.actions, 0, posLabelWithHero, c));
   }
 
   // --- サマリー ---

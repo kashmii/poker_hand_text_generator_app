@@ -1449,6 +1449,7 @@ input[type='radio'] {
 }
 
 .board-input__title {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1457,6 +1458,26 @@ input[type='radio'] {
   font-size: 1rem;
   font-weight: 700;
   color: var(--color-primary);
+}
+
+/* 「戻る」をタイトル行の左端へ（他画面と同じ左上。下部の専用行は廃止して縦スペースを節約） */
+.board-input__back-top {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  background: var(--color-surface2);
+  color: var(--color-text-muted, #9ca3af);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 0.45rem 0.85rem;
+  min-height: 38px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.board-input__back-top:hover {
+  background: var(--color-border);
 }
 
 /* 開発用: Result画面ショートカットボタン */
@@ -1609,9 +1630,16 @@ input[type='radio'] {
 }
 
 .board-picker__ranks {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+}
+/* ランクボタンは等幅グリッドセルに合わせてタップ領域を拡大（タッチ標準44px） */
+.board-picker__ranks .rank-btn {
+  min-width: 0;
+  padding: 0;
+  min-height: 44px;
+  font-size: 1.05rem;
 }
 
 .board-picker__suits {
@@ -1629,6 +1657,7 @@ input[type='radio'] {
   font-size: 1.8rem;
   flex: 1;
   padding: 0.5rem;
+  min-height: 48px;
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);

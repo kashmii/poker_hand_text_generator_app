@@ -347,7 +347,7 @@ export default function HandInput({ session, handNumber, onSave, onCancel, onUpd
           /* ホールカード入力 */
           <div className="board-input-wrap">
             <div className="board-input__title">
-              ホールカード
+              手札
               {import.meta.env.DEV && (
                 <button
                   type="button"
@@ -372,6 +372,13 @@ export default function HandInput({ session, handNumber, onSave, onCancel, onUpd
                   rndm
                 </button>
               )}
+              <button
+                type="button"
+                className="board-input__back-top"
+                onClick={() => onUpdateSession({ heroPosition: '', heroId: players[0]?.id ?? '' })}
+              >
+                ← 戻る
+              </button>
             </div>
 
             <div className="board-input__slots">
@@ -438,16 +445,6 @@ export default function HandInput({ session, handNumber, onSave, onCancel, onUpd
                   );
                 })}
               </div>
-            </div>
-
-            <div className="board-input__actions">
-              <button
-                type="button"
-                className="btn-secondary board-input__back"
-                onClick={() => onUpdateSession({ heroPosition: '', heroId: players[0]?.id ?? '' })}
-              >
-                ← 戻る
-              </button>
             </div>
           </div>
 

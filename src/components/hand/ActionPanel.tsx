@@ -63,9 +63,9 @@ export default function ActionPanel({
     setAmountStr('');
   };
 
-  const startAmountInput = (type: ActionType) => {
+  const startAmountInput = (type: ActionType, prefill = '') => {
     setPendingType(type);
-    setAmountStr('');
+    setAmountStr(prefill);
     setInputMode('numpad');
   };
 
@@ -193,6 +193,16 @@ export default function ActionPanel({
             onClick={() => startAmountInput(currentBet > 0 ? 'raise' : 'bet')}
           >
             {currentBet > 0 ? 'RAISE' : 'BET'}
+          </button>
+
+          {/* ALL-IN: 金額入力へ（空で開く）。
+              入力額がコール額以下なら記録側で「calls … and is all-in」と出力される */}
+          <button
+            type="button"
+            className="action-btn action-btn--allin"
+            onClick={() => startAmountInput('allin')}
+          >
+            ALL-IN
           </button>
 
           {canStraddle && (

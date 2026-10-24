@@ -1,4 +1,5 @@
 import type { HandData, SessionConfig } from '../types/poker';
+import { uuid } from './uuid';
 
 const STREETS = ['preflop', 'flop', 'turn', 'river'] as const;
 const TITLES = [
@@ -18,7 +19,7 @@ const TITLES = [
 ];
 
 function randomId() {
-  return crypto.randomUUID();
+  return uuid();
 }
 
 export function generateDummyHands(session: SessionConfig, startNumber: number, count: number): HandData[] {

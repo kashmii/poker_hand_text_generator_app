@@ -10,6 +10,7 @@ import { ShowdownPlayerPanel, WinnerPanel, HandEndPanel } from './hand/ShowdownP
 import type { RecordedAction } from './hand/types';
 import { pickRandomCards } from '../utils/randomCard';
 import { reachedBoards } from '../utils/reachedBoards';
+import { uuid } from '../utils/uuid';
 
 const RANKS: Rank[] = ['A', 'K', 'Q', 'J', 'T', '9', '8', '7', '6', '5', '4', '3', '2'];
 const SUITS: { value: Suit; label: string; color: string }[] = [
@@ -30,7 +31,7 @@ interface Props {
 
 function generateId() {
   // DBの主キーにそのまま使い、再送しても二重登録にならないよう全ユーザーで一意なUUIDにする
-  return crypto.randomUUID();
+  return uuid();
 }
 
 const STREET_LABELS: Record<string, string> = {

@@ -14,6 +14,7 @@ import (
 	"github.com/kashmii/poker_hand_text_generator_app/server/internal/auth"
 	"github.com/kashmii/poker_hand_text_generator_app/server/internal/db"
 	"github.com/kashmii/poker_hand_text_generator_app/server/internal/hand"
+	"github.com/kashmii/poker_hand_text_generator_app/server/internal/mcpserver"
 )
 
 func main() {
@@ -64,9 +65,24 @@ func main() {
 		log.Fatal("PERSONAL_API_KEY and PERSONAL_USER_ID must be set together")
 	}
 
+	hands := hand.NewPgStore(pool)
+
+	// 例: PUBLIC_BASE_URL="https://<Cloud Run のURL>"。設定したときだけ、Claude などから使う /mcp を有効にする
+	// （MCP クライアントに知らせるリソースの URL になるので、外から見える URL を入れる）
+	var mcpConfig *mcpserver.Config
+	if publicBaseURL := os.Getenv("PUBLIC_BASE_URL"); publicBaseURL != "" {
+		mcpConfig = &mcpserver.Config{
+			BaseURL:    publicBaseURL,
+			AuthServer: strings.TrimRight(supabaseURL, "/") + "/auth/v1",
+			Verifier:   verifier,
+			Hands:      hands,
+		}
+		log.Println("mcp: enabled at " + mcpserver.Path)
+	}
+
 	srv := &http.Server{
 		Addr:              ":" + port,
-		Handler:           newRouter(allowedOrigins, pool, verifier.Middleware, hand.NewPgStore(pool)),
+		Handler:           newRouter(allowedOrigins, pool, verifier.Middleware, hands, mcpConfig),
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 

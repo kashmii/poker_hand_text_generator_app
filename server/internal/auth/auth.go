@@ -59,9 +59,32 @@ func NewVerifier(kf jwt.Keyfunc, issuer string) *Verifier {
 	return &Verifier{keyfunc: kf, issuer: issuer}
 }
 
+// Claims は検証済みの JWT から取り出す項目。
+type Claims struct {
+	UserID string // sub（Supabase のユーザーID）
+	// ClientID は Supabase の OAuth サーバーが MCP クライアントなどに発行したトークンにだけ入る。
+	// Web アプリのログインで得たトークンでは空。
+	ClientID  string
+	ExpiresAt time.Time
+}
+
+type supabaseClaims struct {
+	jwt.RegisteredClaims
+	ClientID string `json:"client_id"`
+}
+
 // Verify は JWT を検証し、ユーザーID（sub）を返す。
 func (v *Verifier) Verify(tokenString string) (string, error) {
-	var claims jwt.RegisteredClaims
+	c, err := v.VerifyClaims(tokenString)
+	if err != nil {
+		return "", err
+	}
+	return c.UserID, nil
+}
+
+// VerifyClaims は JWT を検証し、ユーザーIDなどを返す。
+func (v *Verifier) VerifyClaims(tokenString string) (Claims, error) {
+	var claims supabaseClaims
 	_, err := jwt.ParseWithClaims(tokenString, &claims, v.keyfunc,
 		jwt.WithValidMethods(validMethods),
 		jwt.WithIssuer(v.issuer),
@@ -71,13 +94,14 @@ func (v *Verifier) Verify(tokenString string) (string, error) {
 		jwt.WithLeeway(30*time.Second),
 	)
 	if err != nil {
-		return "", err
+		return Claims{}, err
 	}
 	// sub は Supabase のユーザーID（UUID）。DB の user_id にそのまま使うので形式を確かめる
 	if !uuidPattern.MatchString(claims.Subject) {
-		return "", errors.New("sub is not a uuid")
+		return Claims{}, errors.New("sub is not a uuid")
 	}
-	return claims.Subject, nil
+	// exp は WithExpirationRequired で必ずある
+	return Claims{UserID: claims.Subject, ClientID: claims.ClientID, ExpiresAt: claims.ExpiresAt.Time}, nil
 }
 
 // SetPersonalKey は個人用APIキーを有効にする。

@@ -63,6 +63,31 @@ func TestVerify(t *testing.T) {
 	}
 }
 
+func TestVerifyClaims(t *testing.T) {
+	iss := authtest.New(t, authtest.DefaultIssuer)
+	v := iss.Verifier()
+
+	// Web アプリのログインで得たトークンには client_id がない
+	web, err := v.VerifyClaims(iss.Token(t, userID))
+	if err != nil {
+		t.Fatalf("VerifyClaims() error = %v", err)
+	}
+	if web.UserID != userID || web.ClientID != "" || web.ExpiresAt.IsZero() {
+		t.Errorf("web token claims = %+v", web)
+	}
+
+	// Supabase の OAuth サーバーが発行したトークンには client_id が入る
+	c := iss.Claims(userID)
+	c["client_id"] = "9a8b7c6d-5e4f-4a2b-8c0d-9e8f7a6b5c4d"
+	oauth, err := v.VerifyClaims(iss.Sign(t, c))
+	if err != nil {
+		t.Fatalf("VerifyClaims() error = %v", err)
+	}
+	if oauth.UserID != userID || oauth.ClientID != "9a8b7c6d-5e4f-4a2b-8c0d-9e8f7a6b5c4d" {
+		t.Errorf("oauth token claims = %+v", oauth)
+	}
+}
+
 func TestMiddleware(t *testing.T) {
 	iss := authtest.New(t, authtest.DefaultIssuer)
 

@@ -21,7 +21,7 @@ func (f fakeDB) Ping(ctx context.Context) error { return f.err }
 func testRouter(t *testing.T, allowedOrigins []string, db pinger) (http.Handler, *authtest.Issuer) {
 	t.Helper()
 	iss := authtest.New(t, authtest.DefaultIssuer)
-	return newRouter(allowedOrigins, db, iss.Verifier().Middleware, handtest.NewMemStore()), iss
+	return newRouter(allowedOrigins, db, iss.Verifier().Middleware, handtest.NewMemStore(), nil), iss
 }
 
 func TestHealth(t *testing.T) {

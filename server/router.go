@@ -10,6 +10,7 @@ import (
 	"github.com/kashmii/poker_hand_text_generator_app/server/internal/auth"
 	"github.com/kashmii/poker_hand_text_generator_app/server/internal/hand"
 	"github.com/kashmii/poker_hand_text_generator_app/server/internal/httpjson"
+	"github.com/kashmii/poker_hand_text_generator_app/server/internal/mcpserver"
 )
 
 // pinger は DB に疎通確認できるもの（*pgxpool.Pool が満たす）。
@@ -19,12 +20,16 @@ type pinger interface {
 }
 
 // newRouter はルーティングとミドルウェアを組み立てた http.Handler を返す。
-// requireAuth はログイン済み（JWT が正しい）リクエストだけを通すミドルウェア
-func newRouter(allowedOrigins []string, db pinger, requireAuth func(http.Handler) http.Handler, hands hand.Store) http.Handler {
+// requireAuth はログイン済み（JWT が正しい）リクエストだけを通すミドルウェア。
+// mcpConfig が nil でなければ、Claude などから使うリモート MCP サーバー（/mcp）も載せる
+func newRouter(allowedOrigins []string, db pinger, requireAuth func(http.Handler) http.Handler, hands hand.Store, mcpConfig *mcpserver.Config) http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /health", handleHealth(db))
 	mux.Handle("GET /me", requireAuth(http.HandlerFunc(handleMe)))
 	hand.NewHandler(hands).Register(mux, requireAuth)
+	if mcpConfig != nil {
+		mcpserver.Register(mux, *mcpConfig)
+	}
 	return withCORS(allowedOrigins, mux)
 }
 

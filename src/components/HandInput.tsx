@@ -347,7 +347,7 @@ export default function HandInput({ session, handNumber, onSave, onCancel, onUpd
           /* ホールカード入力 */
           <div className="board-input-wrap">
             <div className="board-input__title">
-              ホールカード
+              手札
               {import.meta.env.DEV && (
                 <button
                   type="button"

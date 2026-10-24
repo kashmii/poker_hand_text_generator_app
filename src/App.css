@@ -1928,3 +1928,75 @@ input[type='radio'] {
 .hand-end__confirm {
   flex: 2;
 }
+
+/* ===== AUTH（ログイン） ===== */
+.auth-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem 0.75rem;
+  padding: 0.6rem 1rem;
+  background: var(--color-surface2);
+  border-bottom: 1px solid var(--color-border);
+  font-size: 0.85rem;
+}
+
+.auth-bar--notice {
+  flex-direction: column;
+  text-align: center;
+  line-height: 1.5;
+}
+
+.auth-bar__status {
+  color: var(--color-text-muted);
+}
+
+.auth-bar__status strong {
+  color: var(--color-text);
+  font-weight: 600;
+}
+
+.auth-bar__error {
+  width: 100%;
+  text-align: center;
+  color: var(--color-danger);
+}
+
+.auth-bar__dev {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  width: 100%;
+}
+
+.auth-bar__dev-result {
+  color: var(--color-text-muted);
+  font-size: 0.8rem;
+  word-break: break-all;
+}
+
+.btn-auth {
+  display: inline-block;
+  background: #fff;
+  color: #1f2937;
+  font-weight: 600;
+  padding: 0.45rem 0.9rem;
+  border-radius: var(--radius);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.btn-auth:hover {
+  opacity: 0.9;
+}
+
+.btn-auth--sub {
+  background: transparent;
+  color: var(--color-text-muted);
+  border: 1px solid var(--color-border);
+  font-weight: normal;
+  padding: 0.3rem 0.7rem;
+}

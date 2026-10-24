@@ -109,9 +109,55 @@ const handWithShowdown: HandData = {
   winners: [{ playerId: 'btn', amount: 200, description: 'two pair, aces and kings' }],
 };
 
+/** オールインの各パターン（bet/call/raise）を含むハンド */
+const handWithAllIns: HandData = {
+  id: 'hand-4',
+  handNumber: 4,
+  dealerPosition: 0,
+  pot: 300,
+  streets: {
+    preflop: {
+      actions: [
+        // プリフロップ: BBの10を超える → raise 判定
+        { playerId: 'btn', type: 'allin', amount: 50 },
+        // コール必要額(50)と同額 → call 判定（ショートスタックのコール）
+        { playerId: 'sb',  type: 'allin', amount: 50 },
+        { playerId: 'bb',  type: 'fold' },
+      ],
+    },
+    flop: {
+      board: [{ rank: 'A', suit: 'h' }, { rank: 'K', suit: 'd' }, { rank: 'Q', suit: 'c' }],
+      actions: [
+        // ストリート先頭・未ベット → bet 判定
+        { playerId: 'sb',  type: 'allin', amount: 80 },
+      ],
+    },
+  },
+  winners: [{ playerId: 'btn', amount: 300 }],
+  showdown: [],
+};
+
 // ========== テスト ==========
 
 describe('generateHandText', () => {
+
+  describe('オールインの記録表記', () => {
+    it('既存ベットを超えるオールインは raise ... and is all-in と出力される', () => {
+      const text = generateHandText(handWithAllIns, session3way);
+      expect(text).toContain('BTN (hero) raises $50 and is all-in');
+    });
+
+    it('コール必要額と同額（ショート）のオールインは call ... and is all-in と出力される', () => {
+      const text = generateHandText(handWithAllIns, session3way);
+      expect(text).toContain('SB calls $50 and is all-in');
+    });
+
+    it('ストリート先頭・未ベットのオールインは bet ... and is all-in と出力される', () => {
+      const text = generateHandText(handWithAllIns, session3way);
+      expect(text).toContain('SB bets $80 and is all-in');
+    });
+  });
+
 
   describe('ヘッダー行', () => {
     it('ブラインド表記が含まれる', () => {

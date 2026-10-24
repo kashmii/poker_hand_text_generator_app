@@ -292,25 +292,33 @@ export default function PokerTable({ players, state, actorId, heroId, onBoardCli
           const isDealerSeat = is9Max && i === 0;
           const nodeR = 19;
 
+          // ハンド開始前（ポジション選択・ホールカード入力中）は live/fold の区別がないので緑にしない
+          const handStarted = state.phase !== 'hole-cards';
+
           const bgColor = isFolded ? '#2a3244'
             : isAllIn  ? '#3d1030'
             : isActor  ? '#1535b8'
             : isDealerSeat ? '#0f0f19'
             : '#18253a';
-          const strokeColor = isActor  ? '#60a5fa'
-            : isDealerSeat ? '#c8a030'
+          // foldedは灰色で沈め、ハンド開始後のliveプレイヤーの辺は緑で視認性を上げる。
+          // actor（青）/all-in（マゼンタ）は状態を示すため優先。BTNはDチップで示すため辺は色付けしない。
+          const strokeColor = isFolded ? '#3a4f6a'
+            : isActor  ? '#60a5fa'
             : isAllIn  ? '#f0abfc'
-            : isHero   ? '#a78bfa'
+            : handStarted ? '#34d399'
             : '#3a4f6a';
+          // live は辺を太く、folded は細く、開始前は既定幅でコントラストを付ける
+          const strokeW = isFolded ? 1 : handStarted ? 2 : 1.5;
 
           return (
-            <g key={player.id} transform={`translate(${pos.x.toFixed(2)}, ${pos.y.toFixed(2)})`}>
+            <g key={player.id} transform={`translate(${pos.x.toFixed(2)}, ${pos.y.toFixed(2)})`}
+              opacity={isFolded ? 0.45 : 1}>
               {isActor && (
                 <circle r={nodeR + 6} fill="none" stroke="#60a5fa"
                   strokeWidth="2" opacity="0.5" className="actor-pulse" />
               )}
 
-              <circle r={nodeR} fill={bgColor} stroke={strokeColor} strokeWidth="1.5" />
+              <circle r={nodeR} fill={bgColor} stroke={strokeColor} strokeWidth={strokeW} />
 
               {showContrib && (() => {
                 // テーブル中心方向（内向き）に配置
@@ -339,7 +347,7 @@ export default function PokerTable({ players, state, actorId, heroId, onBoardCli
 
               {isDealerSeat ? (
                 <text x="0" y="-3.5" textAnchor="middle"
-                  fontSize="7.5" fill="rgba(200,160,60,0.8)" fontWeight="bold">
+                  fontSize="7.5" fill={isHero ? '#c4b5fd' : '#8ea8c8'} fontWeight="bold">
                   BTN
                 </text>
               ) : (

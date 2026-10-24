@@ -150,6 +150,15 @@ export default function BoardInput({
           </button>
         )}
         {titleExtra}
+        {onBack && (
+          <button
+            type="button"
+            className="board-input__back-top"
+            onClick={onBack}
+          >
+            ← 戻る
+          </button>
+        )}
       </div>
 
       {/* カードスロット群 */}
@@ -223,27 +232,17 @@ export default function BoardInput({
         </div>
       </div>
 
-      {(onBack || allFilled) && (
-        <div className={`board-input__actions ${onBack && allFilled ? 'board-input__actions--two' : ''}`}>
-          {onBack && (
-            <button
-              type="button"
-              className="btn-secondary board-input__back"
-              onClick={onBack}
-            >
-              ← 1つ戻る
-            </button>
-          )}
-          {/* 先行入力などで全スロットが埋まっている場合は自動確定されないため、確定ボタンを出す */}
-          {allFilled && (
-            <button
-              type="button"
-              className="btn-primary board-input__confirm"
-              onClick={onConfirm}
-            >
-              {confirmLabel}
-            </button>
-          )}
+      {/* 戻るはタイトル行へ移動。全スロット入力済みのときだけ下部に確定ボタンを出す
+          （先行入力などで自動確定されないケース用） */}
+      {allFilled && (
+        <div className="board-input__actions">
+          <button
+            type="button"
+            className="btn-primary board-input__confirm"
+            onClick={onConfirm}
+          >
+            {confirmLabel}
+          </button>
         </div>
       )}
     </div>

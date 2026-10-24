@@ -364,6 +364,10 @@ export function useHandFlow(session: SessionConfig) {
         }
         // check: nothing to update
 
+        // このオールインが上乗せ（レイズ/ベット）か、コール額以下（ショートスタックのコール相当）か。
+        // コール相当のオールインは closingPlayer をリセットせず、callと同じ終了判定を使う。
+        const allinIsRaise = type === 'allin' && newBet > prev.currentBet;
+
         // アクション後の（fold除く）アクティブプレイヤーリスト
         const activePlayers = playerIds.filter((id) => !newFolded.has(id));
 
@@ -383,7 +387,7 @@ export function useHandFlow(session: SessionConfig) {
 
         // ---- closingPlayerId の更新 ----
         let newClosingPlayerId = prev.closingPlayerId;
-        if (type === 'bet' || type === 'raise' || type === 'allin') {
+        if (type === 'bet' || type === 'raise' || allinIsRaise) {
           // ベッター/オールインの newOrder 上1つ前の人が最後にアクションする人
           const betterIdx = newOrder.indexOf(actorId);
           if (betterIdx >= 0) {
@@ -438,8 +442,18 @@ export function useHandFlow(session: SessionConfig) {
           const afterBetRaw = actorNewIdx >= 0 ? actorNewIdx + 1 : newOrder.length;
           streetOver = afterBetRaw >= newOrder.length && allSquared;
         } else if (type === 'allin') {
-          // allin直後: newOrder（まだアクション必要な人のリスト）が空になったら終了
-          streetOver = newOrder.length === 0;
+          if (allinIsRaise) {
+            // レイズ/ベット相当のallin直後: newOrder（まだアクション必要な人）が空なら終了
+            streetOver = newOrder.length === 0;
+          } else {
+            // コール相当（ショート額）のallin: callと同じ終了判定。
+            // closingPlayer自身がオールインコールしたら揃っていれば終了。
+            if (newClosingPlayerId !== null) {
+              streetOver = actorId === newClosingPlayerId && allSquared;
+            } else {
+              streetOver = lappedEnd && allSquared;
+            }
+          }
         } else {
           // call / fold の後:
           if (newClosingPlayerId !== null) {
@@ -456,14 +470,35 @@ export function useHandFlow(session: SessionConfig) {
           }
         }
 
+        // ---- アンコール分（未コールのベット）の返却 ----
+        // ショートスタックのオールイン等で、トップの拠出が一部コールされなかった場合、
+        // その差額（最高拠出 − 2番目の拠出）はポットに入らず拠出者へ戻る。
+        let finalPot = newPot;
+        let finalContributions = newContributions;
+        if (streetOver && activePlayers.length > 1) {
+          const sorted = activePlayers
+            .map((id) => newContributions[id] ?? 0)
+            .sort((a, b) => b - a);
+          const uncalled = (sorted[0] ?? 0) - (sorted[1] ?? 0);
+          if (uncalled > 0) {
+            finalPot = newPot - uncalled;
+            const topId = activePlayers.find(
+              (id) => (newContributions[id] ?? 0) === sorted[0],
+            );
+            if (topId) {
+              finalContributions = { ...newContributions, [topId]: sorted[1] ?? 0 };
+            }
+          }
+        }
+
         const newState: HandFlowState = {
           ...prev,
           streets: newStreets,
           foldedIds: newFolded,
           allInIds: newAllIn,
-          contributions: newContributions,
+          contributions: finalContributions,
           currentBet: newBet,
-          pot: newPot,
+          pot: finalPot,
           currentActorIdx: newActorIdx,
           closingPlayerId: newClosingPlayerId,
           phase: 'action',

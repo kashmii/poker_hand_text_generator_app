@@ -85,6 +85,51 @@ describe('useHandFlow: ストリート終了ロジック', () => {
       expect(result.current.state.currentStreet).toBe('flop');
     });
 
+    it('【回帰】BTNのレイズより小さいオールイン（コール相当）でプリフロップが終了する', () => {
+      // BTNが88にレイズ → SBフォールド → BBがBTNの額より少ない75でオールイン（ショートのコール）
+      // これはコール相当なので、BTNに再度アクションを促さずストリート終了すべき
+      const { result } = renderHook(() => useHandFlow(makeSession3way()));
+      skipHoleCards(result);
+
+      act(() => { result.current.commitAction('raise', 88); }); // BTN raise to 88
+      act(() => { result.current.commitAction('fold'); });       // SB fold
+      act(() => { result.current.commitAction('allin', 75); });  // BB all-in for 75 (< 88)
+
+      // コール相当のオールイン → ストリート終了 → board-input へ
+      expect(result.current.state.phase).toBe('board-input');
+      // BTNが再度アクションを促されていないこと
+      expect(result.current.state.phase).not.toBe('action');
+    });
+
+    it('【回帰】ショートオールインのコール時、未コール分はポットに入らない', () => {
+      // BTNが88にレイズ → SBフォールド → BBが75でオールイン（コール相当）
+      // BTNの88のうち75しかコールされないので、差額13はポットに入らない。
+      // ポット = SB(5) + BTN(75) + BB(75) = 155（BBのpost分10はBBの拠出75に含まれる）
+      const { result } = renderHook(() => useHandFlow(makeSession3way()));
+      skipHoleCards(result);
+
+      act(() => { result.current.commitAction('raise', 88); }); // BTN raise to 88
+      act(() => { result.current.commitAction('fold'); });       // SB fold
+      act(() => { result.current.commitAction('allin', 75); });  // BB all-in for 75
+
+      // SB post 5（fold後も戻らない） + BTN 75 + BB 75 = 155
+      expect(result.current.state.pot).toBe(155);
+    });
+
+    it('BTNのレイズを超えるオールイン（レイズ相当）では相手にアクションが残る', () => {
+      // BTNが30にレイズ → SBフォールド → BBが200でオールイン（上乗せ）
+      // レイズ相当なのでBTNのアクションが残る
+      const { result } = renderHook(() => useHandFlow(makeSession3way()));
+      skipHoleCards(result);
+
+      act(() => { result.current.commitAction('raise', 30); });  // BTN raise to 30
+      act(() => { result.current.commitAction('fold'); });        // SB fold
+      act(() => { result.current.commitAction('allin', 200); });  // BB all-in raise
+
+      expect(result.current.state.phase).toBe('action');
+      expect(result.current.actorId).toBe('btn');
+    });
+
     it('BBがチェック（オプション）でプリフロップが終了する', () => {
       // 全員コール後BBにはチェックの権利がある
       const { result } = renderHook(() => useHandFlow(makeSession3way()));

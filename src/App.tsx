@@ -7,6 +7,8 @@ import ResultPage from './pages/ResultPage';
 import HistoryPage from './pages/HistoryPage';
 import HistoryDetailPage from './pages/HistoryDetailPage';
 import DevHistoryPage from './pages/DevHistoryPage';
+import PrivacyPage from './pages/PrivacyPage';
+import OAuthConsentPage from './pages/OAuthConsentPage';
 import './App.css';
 
 export default function App() {
@@ -21,6 +23,9 @@ export default function App() {
               <Route path="/result" element={<ResultPage />} />
               <Route path="/history" element={<HistoryPage />} />
               <Route path="/history/:id" element={<HistoryDetailPage />} />
+              <Route path="/privacy" element={<PrivacyPage />} />
+              {/* Claude などの MCP クライアントへの接続を許可する画面（Supabase の OAuth サーバーから来る） */}
+              <Route path="/oauth/consent" element={<OAuthConsentPage />} />
               {/* DEV 専用: ログイン・API なしで履歴画面の見た目を確認する（本番ではsetupへ流れる） */}
               {import.meta.env.DEV && <Route path="/dev/history" element={<DevHistoryPage />} />}
               {/* ルート or 不明なパスはsetupへ */}

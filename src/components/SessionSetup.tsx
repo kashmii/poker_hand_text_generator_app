@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import type { SessionConfig } from '../types/poker';
 import { createDefaultPlayers } from '../context/AppContext';
 import { BLIND_PRESETS } from './setup/constants';
@@ -85,7 +86,7 @@ export default function SessionSetup({ onStart, onUpdate, onViewResult, initialS
 
   return (
     <div className="session-setup">
-      <h1 className="app-title">🃏 Poker Hand Logger</h1>
+      <h1 className="app-title">🃏 Poker Hand Text Generator</h1>
       <AuthBar />
       {onViewResult && (
         <div className="setup-history-bar">
@@ -151,6 +152,9 @@ export default function SessionSetup({ onStart, onUpdate, onViewResult, initialS
           )}
         </div>
       </form>
+      <p className="setup-legal">
+        <Link to="/privacy">プライバシーポリシー</Link>
+      </p>
     </div>
   );
 }

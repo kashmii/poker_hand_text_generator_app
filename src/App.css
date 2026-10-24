@@ -811,6 +811,48 @@ input[type='radio'] {
   gap: 0.5rem;
 }
 
+/* 見出しもボタンも文字の途中で折り返さない（2行になると窮屈なため） */
+.hand-review__header {
+  gap: 0.5rem;
+}
+.hand-review__header h2 {
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.header-actions button {
+  white-space: nowrap;
+}
+
+/* スマホ幅ではボタン3つと見出しを1行に収めるため小さくする */
+@media (max-width: 480px) {
+  .hand-review__header {
+    padding: 0.6rem 0.75rem;
+  }
+  .hand-review__header h2 {
+    font-size: 1rem;
+  }
+  .header-actions {
+    gap: 0.35rem;
+  }
+  .header-actions button {
+    padding: 0.5rem 0.6rem;
+    font-size: 0.8rem;
+  }
+}
+/* 360px 以下（小さめのAndroid・iPhone SE 初代など）ではもう一段小さくする */
+@media (max-width: 360px) {
+  .hand-review__header h2 {
+    font-size: 0.9rem;
+  }
+  .header-actions {
+    gap: 0.25rem;
+  }
+  .header-actions button {
+    padding: 0.45rem 0.4rem;
+    font-size: 0.72rem;
+  }
+}
+
 .settings-bar {
   display: flex;
   align-items: center;

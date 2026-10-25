@@ -80,7 +80,7 @@ export default function HandReview({
             </button>
           )}
           <button type="button" className="btn-secondary" onClick={onEditSettings}>
-            設定
+            セッション設定
           </button>
           <button type="button" className="btn-primary" onClick={onNewHand}>
             + 新しいハンド

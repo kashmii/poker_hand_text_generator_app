@@ -8,6 +8,7 @@ import HistoryPage from './pages/HistoryPage';
 import HistoryDetailPage from './pages/HistoryDetailPage';
 import DevHistoryPage from './pages/DevHistoryPage';
 import PrivacyPage from './pages/PrivacyPage';
+import SettingsPage from './pages/SettingsPage';
 import OAuthConsentPage from './pages/OAuthConsentPage';
 import './App.css';
 
@@ -24,6 +25,7 @@ export default function App() {
               <Route path="/history" element={<HistoryPage />} />
               <Route path="/history/:id" element={<HistoryDetailPage />} />
               <Route path="/privacy" element={<PrivacyPage />} />
+              <Route path="/settings" element={<SettingsPage />} />
               {/* Claude などの MCP クライアントへの接続を許可する画面（Supabase の OAuth サーバーから来る） */}
               <Route path="/oauth/consent" element={<OAuthConsentPage />} />
               {/* DEV 専用: ログイン・API なしで履歴画面の見た目を確認する（本番ではsetupへ流れる） */}

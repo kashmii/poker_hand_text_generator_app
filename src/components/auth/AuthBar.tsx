@@ -1,32 +1,25 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useApp } from '../../context/AppContext';
 import { getMe } from '../../api/client';
 import { detectInAppBrowser, externalBrowserUrl, IN_APP_BROWSER_LABELS } from '../../utils/inAppBrowser';
 
 /**
- * ログイン状態の表示と、Google ログイン / ログアウトのボタン。
+ * ログイン状態の表示と、Google ログイン / アカウント画面へのボタン。
  * Supabase の設定がない環境では何も表示しない。
  */
 export default function AuthBar() {
-  const { enabled, loading, session, signInWithGoogle, signOut } = useAuth();
+  const { enabled, loading, session, signInWithGoogle } = useAuth();
   const { hands } = useApp();
   const navigate = useNavigate();
+  const location = useLocation();
   const [error, setError] = useState<string | null>(null);
   const [apiCheck, setApiCheck] = useState<string | null>(null);
 
   if (!enabled || loading) return null;
 
   if (session) {
-    const handleSignOut = async () => {
-      setError(null);
-      try {
-        await signOut();
-      } catch {
-        setError('ログアウトに失敗しました');
-      }
-    };
     // DEV専用: 本物の JWT で Go の /me を呼び、ログインと JWT 検証がつながったか確かめる
     const handleApiCheck = async () => {
       setApiCheck('確認中…');
@@ -46,8 +39,13 @@ export default function AuthBar() {
         <button type="button" className="btn-auth btn-auth--sub" onClick={() => navigate('/history')}>
           過去ハンド一覧
         </button>
-        <button type="button" className="btn-auth btn-auth--sub" onClick={handleSignOut}>
-          ログアウト
+        {/* ログアウトなどはアカウント画面で行う。戻るとこの画面に帰る */}
+        <button
+          type="button"
+          className="btn-auth btn-auth--sub"
+          onClick={() => navigate('/settings', { state: { from: location.pathname } })}
+        >
+          アカウント
         </button>
         {import.meta.env.DEV && (
           <div className="auth-bar__dev">

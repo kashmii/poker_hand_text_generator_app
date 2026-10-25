@@ -42,6 +42,16 @@ export default function HistoryPage() {
           ← 戻る
         </button>
         <h2>過去ハンド一覧</h2>
+        {session && (
+          <button
+            type="button"
+            className="btn-secondary history__account"
+            // 戻ってきたときにこの画面の「戻る」の行き先が変わらないよう、今の state も渡す
+            onClick={() => navigate('/settings', { state: { from: '/history', returnState: location.state } })}
+          >
+            アカウント
+          </button>
+        )}
       </div>
 
       {!enabled ? (

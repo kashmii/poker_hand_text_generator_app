@@ -1151,6 +1151,29 @@ input[type='radio'] {
   font-size: 0.7rem;
   color: var(--color-text-muted);
 }
+.history-item__bottom {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-top: 0.25rem;
+}
+.history-item__result {
+  font-size: 1.05rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  margin-left: auto;
+}
+.history-item__result--win {
+  color: #22a06b;
+}
+.history-item__result--loss {
+  color: #e53e3e;
+}
+.history-item__result--even {
+  color: var(--color-text-muted);
+}
 .history-item__title {
   font-size: 0.95rem;
 }
@@ -1158,7 +1181,6 @@ input[type='radio'] {
   display: flex;
   flex-wrap: wrap;
   gap: 0.75rem;
-  margin-top: 0.25rem;
 }
 .history-item__cards-group {
   display: inline-flex;

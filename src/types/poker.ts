@@ -85,6 +85,8 @@ export interface HandData {
   title?: string;
   /** 記録時のセッション設定スナップショット（人数変更があっても当時の設定でテキスト生成するため） */
   session?: SessionConfig;
+  /** ヒーローの収支（勝ち＝正 / 負け＝負）。保存時に計算して埋め込む。古いハンドでは無い */
+  heroResult?: number;
 }
 
 // ========== アプリ状態 ==========

@@ -23,6 +23,20 @@ interface Props {
   onOpen: (id: string) => void;
 }
 
+/** 収支バッジ。勝ち＝緑(+)、負け＝赤(−)、ちょうど0は±0。heroResult が無ければ null。 */
+function ResultBadge({ result, currency }: { result?: number | null; currency?: string | null }) {
+  if (result === null || result === undefined) return null;
+  const c = currency ?? '';
+  const tone = result > 0 ? 'win' : result < 0 ? 'loss' : 'even';
+  const sign = result > 0 ? '+' : result < 0 ? '−' : '±';
+  const abs = Math.abs(result).toLocaleString();
+  return (
+    <span className={`history-item__result history-item__result--${tone}`}>
+      {sign}{c}{abs}
+    </span>
+  );
+}
+
 /** ハンド概要の一覧（日付・店名・タイトル・手札・ボード）。クリックで onOpen。 */
 export default function HistoryList({ hands, onOpen }: Props) {
   return (
@@ -37,7 +51,8 @@ export default function HistoryList({ hands, onOpen }: Props) {
             <span className="history-item__title">
               {h.title || <span className="hand-title--placeholder">（タイトルなし）</span>}
             </span>
-            {(h.heroHoleCards?.length || h.board?.length) ? (
+            {/* 3行目: 手札＋ボードを左、収支を右に置く。カードが無くても収支は出す */}
+            <span className="history-item__bottom">
               <span className="history-item__cards">
                 {h.heroHoleCards?.length ? (
                   <span className="history-item__cards-group">
@@ -52,7 +67,8 @@ export default function HistoryList({ hands, onOpen }: Props) {
                   </span>
                 ) : null}
               </span>
-            ) : null}
+              <ResultBadge result={h.heroResult} currency={h.currency} />
+            </span>
           </button>
         </li>
       ))}

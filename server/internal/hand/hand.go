@@ -26,6 +26,10 @@ type Summary struct {
 	// Board は flop/turn/river を連結した全ボード。Get/Upsert では空のまま。
 	HeroHoleCards json.RawMessage `json:"heroHoleCards,omitempty"`
 	Board         json.RawMessage `json:"board,omitempty"`
+	// HeroResult はヒーローの収支（勝ち＝正 / 負け＝負）。data->heroResult をそのまま返す（無ければ null）。
+	// Currency は収支表示用の通貨記号。どちらも List のときだけ入る。
+	HeroResult json.RawMessage `json:"heroResult,omitempty"`
+	Currency   json.RawMessage `json:"currency,omitempty"`
 }
 
 // Hand はハンド1件。Data にフロントの HandData を丸ごと持つ。

@@ -80,6 +80,7 @@ export interface HandData {
     playerId: string;
     amount: number;
     description?: string; // "with flush" など
+    label?: string; // "main pot" / "side pot" など（サイドポットがある場合）
   }[];
   notes?: string;
   title?: string;

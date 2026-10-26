@@ -1,6 +1,8 @@
 import { useState, useCallback } from 'react';
 import type { SessionConfig, ActionType, Card } from '../../types/poker';
 import type { HandFlowState, RecordedAction, ShowdownRecord, Street } from './types';
+import { computeSidePots } from '../../utils/sidePots';
+import type { Pot, WinnerEntry } from '../../utils/sidePots';
 
 const STREETS: Street[] = ['preflop', 'flop', 'turn', 'river'];
 
@@ -115,6 +117,135 @@ function buildShowdownQueue(
 }
 
 
+/**
+ * サイドポットのカスケード解決の「次の一手」。
+ * - showdown: このポットでまだ見せていない参加者を見せる
+ * - winner: このポットの勝者を選ぶ
+ * - done: 全ポット解決済み（potWinners は top→main 順）
+ */
+type CascadeStep =
+  | {
+      kind: 'showdown';
+      potResolveIdx: number;
+      carriedWinnerId: string | null;
+      eliminatedIds: Set<string>;
+      potWinners: WinnerEntry[];
+      showdownQueue: string[];
+    }
+  | {
+      kind: 'winner';
+      potResolveIdx: number;
+      carriedWinnerId: string | null;
+      eliminatedIds: Set<string>;
+      potWinners: WinnerEntry[];
+    }
+  | { kind: 'done'; potWinners: WinnerEntry[] };
+
+/**
+ * 上位(side)ポットから下位(main)ポットへ順に解決し、次にユーザー操作が必要なステップを返す。
+ * - 争い(生存候補2人以上)のポットは、まだ見せていない参加者を showdown させ、その後 winner 選択。
+ * - 1人以下のポットは無抽選で確定（ショー不要）し、勝者を下位へ持ち越す。
+ * - 上位ポットで敗退した人は下位ポットの候補から除外される。
+ */
+function advanceCascade(params: {
+  pots: Pot[];
+  startIdx: number;
+  carried: string | null;
+  eliminated: Set<string>;
+  potWinners: WinnerEntry[];
+  showdownRecords: ShowdownRecord[];
+  streets: Record<Street, RecordedAction[]>;
+  playerIds: string[];
+  foldedIds: Set<string>;
+}): CascadeStep {
+  const { pots, playerIds, foldedIds, streets } = params;
+  let idx = params.startIdx;
+  let carried = params.carried;
+  const eliminated = new Set(params.eliminated);
+  const potWinners = [...params.potWinners];
+  const shownIds = new Set(params.showdownRecords.map((r) => r.playerId));
+  const muckedIds = new Set(
+    params.showdownRecords.filter((r) => r.action === 'muck').map((r) => r.playerId),
+  );
+  const multi = pots.length > 1;
+  const order = buildShowdownQueue(streets, playerIds, foldedIds); // ラストアグレッサー順
+
+  const award = (pot: Pot, winnerId: string) => {
+    potWinners.push({
+      playerId: winnerId,
+      amount: pot.amount,
+      ...(multi ? { label: pot.label } : {}),
+    });
+    carried = winnerId;
+  };
+
+  while (idx >= 0) {
+    const pot = pots[idx];
+    const live = pot.eligiblePlayerIds.filter((id) => !eliminated.has(id));
+
+    if (live.length <= 1) {
+      const winner = live[0] ?? carried;
+      if (winner) award(pot, winner);
+      idx--;
+      continue;
+    }
+
+    // 争いのあるポット: まだ見せていない参加者を見せる
+    const needShow = order.filter((id) => live.includes(id) && !shownIds.has(id));
+    if (needShow.length > 0) {
+      return { kind: 'showdown', potResolveIdx: idx, carriedWinnerId: carried, eliminatedIds: eliminated, potWinners, showdownQueue: needShow };
+    }
+
+    // 全員 show/muck 済み → muck を除いた候補で判定
+    const liveNonMucked = live.filter((id) => !muckedIds.has(id));
+    if (liveNonMucked.length <= 1) {
+      const winner = liveNonMucked[0] ?? carried;
+      if (winner) award(pot, winner);
+      idx--;
+      continue;
+    }
+    return { kind: 'winner', potResolveIdx: idx, carriedWinnerId: carried, eliminatedIds: eliminated, potWinners };
+  }
+  return { kind: 'done', potWinners };
+}
+
+/** CascadeStep を state に反映する。done のときは potWinners を main→side 順へ並べ替える。 */
+function applyCascadeStep(base: HandFlowState, pots: Pot[], step: CascadeStep): HandFlowState {
+  if (step.kind === 'done') {
+    return {
+      ...base,
+      pots,
+      phase: 'done',
+      potResolveIdx: -1,
+      showdownQueue: [],
+      carriedWinnerId: null,
+      potWinners: [...step.potWinners].reverse(), // top→main で積んだので反転して main→side
+    };
+  }
+  if (step.kind === 'showdown') {
+    return {
+      ...base,
+      pots,
+      phase: 'showdown',
+      potResolveIdx: step.potResolveIdx,
+      carriedWinnerId: step.carriedWinnerId,
+      eliminatedIds: step.eliminatedIds,
+      potWinners: step.potWinners,
+      showdownQueue: step.showdownQueue,
+    };
+  }
+  return {
+    ...base,
+    pots,
+    phase: 'winner',
+    potResolveIdx: step.potResolveIdx,
+    carriedWinnerId: step.carriedWinnerId,
+    eliminatedIds: step.eliminatedIds,
+    potWinners: step.potWinners,
+    showdownQueue: [],
+  };
+}
+
 export function useHandFlow(session: SessionConfig) {
   const { players, smallBlind, bigBlind, ante } = session;
   const playerIds = players.map((p) => p.id);
@@ -143,6 +274,17 @@ export function useHandFlow(session: SessionConfig) {
     return c;
   };
 
+  // ハンド通算の初期投入額。per-street の contributions と違い、アンティも含める。
+  // アンティは BB アンティ（BB のみ支払い）なので BB の通算拠出へ織り込む。
+  const initTotalContributions = (): Record<string, number> => {
+    const c = initContributions();
+    if (ante > 0 && playerIds.length >= 2) {
+      const bbId = players.length === 2 ? playerIds[1] : playerIds[2];
+      c[bbId] = (c[bbId] ?? 0) + ante;
+    }
+    return c;
+  };
+
   const [state, setState] = useState<HandFlowState>({
     currentStreet: 'preflop',
     streets: emptyStreets(),
@@ -152,12 +294,18 @@ export function useHandFlow(session: SessionConfig) {
     allInIds: new Set(),
     currentBet: bigBlind,
     contributions: initContributions(),
+    totalContributions: initTotalContributions(),
     pot: smallBlind + bigBlind + ante,
     phase: 'hole-cards',
     holeCards: null,
     showdownQueue: [],
     showdownRecords: [],
     winnerId: null,
+    pots: [],
+    potResolveIdx: -1,
+    carriedWinnerId: null,
+    eliminatedIds: new Set(),
+    potWinners: [],
     // プリフロップ開始時: BBが必ず最後にアクションする締め切り人
     closingPlayerId: buildPreflopOrder(playerIds, 0)[buildPreflopOrder(playerIds, 0).length - 1] ?? null,
   });
@@ -225,15 +373,30 @@ export function useHandFlow(session: SessionConfig) {
     }
 
     const nextStreetIdx = STREETS.indexOf(currentStreet) + 1;
-    // リバー終了 → ショーダウンへ
+    // リバー終了 → サイドポットのカスケード解決（side→main）を開始
     if (nextStreetIdx >= STREETS.length) {
-      const queue = buildShowdownQueue(newState.streets, playerIds, newState.foldedIds);
-      return {
-        ...newState,
-        phase: 'showdown',
-        showdownQueue: queue,
+      const { pots } = computeSidePots(
+        newState.totalContributions,
+        newState.foldedIds,
+        playerIds,
+      );
+      const base: HandFlowState = { ...newState, showdownRecords: [] };
+      if (pots.length === 0) {
+        // 通常は起きない（拠出があれば必ず1ポット以上）。安全にwinnerフェーズへ。
+        return { ...base, phase: 'winner', pots: [], potResolveIdx: -1, showdownQueue: [] };
+      }
+      const step = advanceCascade({
+        pots,
+        startIdx: pots.length - 1,
+        carried: null,
+        eliminated: new Set(),
+        potWinners: [],
         showdownRecords: [],
-      };
+        streets: newState.streets,
+        playerIds,
+        foldedIds: newState.foldedIds,
+      });
+      return applyCascadeStep(base, pots, step);
     }
 
     // 次のストリートへ（ボード入力）
@@ -283,6 +446,12 @@ export function useHandFlow(session: SessionConfig) {
           newContributions[actorId] = straddleAmount;
           const newPot = prev.pot + (added > 0 ? added : 0);
 
+          // 通算拠出額にも反映（サイドポット計算用）
+          const newTotalContributions = { ...prev.totalContributions };
+          if (added > 0) {
+            newTotalContributions[actorId] = (newTotalContributions[actorId] ?? 0) + added;
+          }
+
           // straddleをstate外で管理
           setCurrentStraddle(straddleAmount);
 
@@ -315,6 +484,7 @@ export function useHandFlow(session: SessionConfig) {
             ...prev,
             streets: newStreets,
             contributions: newContributions,
+            totalContributions: newTotalContributions,
             currentBet: straddleAmount,
             pot: newPot,
             currentActorIdx: newActorIdx,
@@ -350,8 +520,17 @@ export function useHandFlow(session: SessionConfig) {
         let newFolded = new Set(prev.foldedIds);
         let newAllIn = new Set(prev.allInIds);
         let newContributions = { ...prev.contributions };
+        let newTotalContributions = { ...prev.totalContributions };
         let newBet = prev.currentBet;
         let newPot = prev.pot;
+
+        // そのアクションでポットに追加された額を通算拠出額へ反映する
+        const addToTotal = (added: number) => {
+          if (added > 0) {
+            newTotalContributions[actorId] =
+              (newTotalContributions[actorId] ?? 0) + added;
+          }
+        };
 
         if (type === 'fold') {
           newFolded.add(actorId);
@@ -359,12 +538,14 @@ export function useHandFlow(session: SessionConfig) {
           const toCall = callAmount(prev, actorId);
           newContributions[actorId] = prev.currentBet;
           newPot += toCall;
+          addToTotal(toCall);
         } else if (type === 'bet' || type === 'raise') {
           const total = amount ?? prev.currentBet;
           const added = total - (newContributions[actorId] ?? 0);
           newContributions[actorId] = total;
           newBet = total;
           newPot += added;
+          addToTotal(added);
         } else if (type === 'allin') {
           // allin: amount が指定されていればその額、なければプレイヤーのスタック（実効スタック）を使用
           // スタックが未設定(0)の場合は currentBet をフォールバックとして使う
@@ -376,6 +557,7 @@ export function useHandFlow(session: SessionConfig) {
           newContributions[actorId] = total;
           if (total > newBet) newBet = total;
           newPot += added;
+          addToTotal(added);
           newAllIn.add(actorId);
         }
         // check: nothing to update
@@ -513,6 +695,7 @@ export function useHandFlow(session: SessionConfig) {
           foldedIds: newFolded,
           allInIds: newAllIn,
           contributions: finalContributions,
+          totalContributions: newTotalContributions,
           currentBet: newBet,
           pot: finalPot,
           currentActorIdx: newActorIdx,
@@ -572,39 +755,78 @@ export function useHandFlow(session: SessionConfig) {
   );
 
   /**
-   * ショーダウン: 現在のプレイヤーのアクション（show or muck）を記録し次へ
+   * ショーダウン: 現在のプレイヤーのアクション（show or muck）を記録し次へ。
+   * 現ポットの参加者を全員見せ終えたら、カスケードを進めて勝者選択/次ポットへ。
    */
   const commitShowdown = useCallback((record: ShowdownRecord) => {
     setHistory((h) => [...h, state]);
     setState((prev) => {
       const newRecords = [...prev.showdownRecords, record];
       const newQueue = prev.showdownQueue.slice(1);
-      if (newQueue.length === 0) {
-        // 全員終了 → ウィナー選択へ
-        return {
-          ...prev,
-          showdownRecords: newRecords,
-          showdownQueue: [],
-          phase: 'winner',
-        };
+      if (newQueue.length > 0) {
+        return { ...prev, showdownRecords: newRecords, showdownQueue: newQueue };
       }
-      return {
-        ...prev,
+      // 現ポットの提示が終わった → カスケードを現在のポットから再評価
+      const step = advanceCascade({
+        pots: prev.pots,
+        startIdx: prev.potResolveIdx,
+        carried: prev.carriedWinnerId,
+        eliminated: prev.eliminatedIds,
+        potWinners: prev.potWinners,
         showdownRecords: newRecords,
-        showdownQueue: newQueue,
-      };
+        streets: prev.streets,
+        playerIds,
+        foldedIds: prev.foldedIds,
+      });
+      return applyCascadeStep({ ...prev, showdownRecords: newRecords }, prev.pots, step);
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state]);
+  }, [state, playerIds]);
 
   /**
-   * ウィナーを確定して done へ
+   * 現在のポットの勝者を確定し、次の（下位）ポットへ進む。
+   * 敗者は下位ポットの候補から除外し、勝者を持ち越す。全ポット終了で done。
    */
-  const confirmWinner = useCallback((winnerId: string) => {
+  const confirmPotWinner = useCallback((winnerId: string) => {
     setHistory((h) => [...h, state]);
-    setState((prev) => ({ ...prev, winnerId, phase: 'done' }));
+    setState((prev) => {
+      const idx = prev.potResolveIdx;
+      const pot = prev.pots[idx];
+      if (!pot) return prev;
+
+      const muckedIds = new Set(
+        prev.showdownRecords.filter((r) => r.action === 'muck').map((r) => r.playerId),
+      );
+      const live = pot.eligiblePlayerIds.filter((id) => !prev.eliminatedIds.has(id));
+
+      const newEliminated = new Set(prev.eliminatedIds);
+      // この勝者以外（muck含む）は下位ポットの候補から除外
+      live.forEach((id) => {
+        if (id !== winnerId) newEliminated.add(id);
+      });
+      muckedIds.forEach((id) => newEliminated.add(id));
+
+      const multi = prev.pots.length > 1;
+      const newPotWinners = [
+        ...prev.potWinners,
+        { playerId: winnerId, amount: pot.amount, ...(multi ? { label: pot.label } : {}) },
+      ];
+
+      const step = advanceCascade({
+        pots: prev.pots,
+        startIdx: idx - 1,
+        carried: winnerId,
+        eliminated: newEliminated,
+        potWinners: newPotWinners,
+        showdownRecords: prev.showdownRecords,
+        streets: prev.streets,
+        playerIds,
+        foldedIds: prev.foldedIds,
+      });
+      return applyCascadeStep(prev, prev.pots, step);
+    });
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state]);
+  }, [state, playerIds]);
 
   /** 1手戻る */
   const goBack = useCallback(() => {
@@ -619,6 +841,28 @@ export function useHandFlow(session: SessionConfig) {
   const actorId = currentActorId(state, preflopOrder);
   const actorPlayer = players.find((p) => p.id === actorId) ?? null;
   const toCall = actorId ? callAmount(state, actorId) : 0;
+
+  // メイン/サイドポットの構成（通算拠出額から算出）。参照用。
+  const { pots: sidePots } = computeSidePots(
+    state.totalContributions,
+    state.foldedIds,
+    playerIds,
+  );
+
+  // 現在カスケードで解決中のポットと、その勝者候補（eligible − 敗退 − muck）
+  const currentPot =
+    state.phase === 'winner' && state.potResolveIdx >= 0
+      ? state.pots[state.potResolveIdx] ?? null
+      : null;
+  const currentPotCandidates: string[] = (() => {
+    if (!currentPot) return [];
+    const mucked = new Set(
+      state.showdownRecords.filter((r) => r.action === 'muck').map((r) => r.playerId),
+    );
+    return currentPot.eligiblePlayerIds.filter(
+      (id) => !state.eliminatedIds.has(id) && !mucked.has(id),
+    );
+  })();
 
   /**
    * ストラドルボタンを表示するかどうかを判定する。
@@ -688,9 +932,12 @@ export function useHandFlow(session: SessionConfig) {
     confirmBoard,
     updateBoard,
     commitShowdown,
-    confirmWinner,
+    confirmPotWinner,
     goBack,
     players,
     playerIds,
+    sidePots,
+    currentPot,
+    currentPotCandidates,
   };
 }

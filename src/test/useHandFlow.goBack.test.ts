@@ -326,20 +326,19 @@ describe('useHandFlow: goBack（履歴管理）', () => {
       expect(result.current.actorId).toBe('bb');
     });
 
-    it('winner 確定後に goBack すると winner 選択前に戻る', () => {
+    it('winner（フォールド勝ち）から goBack すると最後の fold 前に戻る', () => {
       const { result } = renderHook(() => useHandFlow(makeSession3way()));
       skipHoleCards(result);
 
-      act(() => { result.current.commitAction('raise', 30); });
-      act(() => { result.current.commitAction('fold'); });
-      act(() => { result.current.commitAction('fold'); }); // → winner phase
-      act(() => { result.current.confirmWinner('btn'); });  // → done
-      expect(result.current.state.phase).toBe('done');
-
-      act(() => { result.current.goBack(); });
-
+      act(() => { result.current.commitAction('raise', 30); }); // BTN raise
+      act(() => { result.current.commitAction('fold'); });      // SB fold
+      act(() => { result.current.commitAction('fold'); });      // BB fold → winner
       expect(result.current.state.phase).toBe('winner');
-      expect(result.current.state.winnerId).toBeNull();
+
+      act(() => { result.current.goBack(); }); // BB fold を取り消し
+
+      expect(result.current.state.phase).toBe('action');
+      expect(result.current.actorId).toBe('bb');
     });
 
   });

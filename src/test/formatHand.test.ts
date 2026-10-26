@@ -343,4 +343,27 @@ describe('generateHandText', () => {
     });
   });
 
+  // ========== サイドポットのウィナー表記（要求17） ==========
+  describe('ウィナー表記', () => {
+    it('単一ポットはラベルなしで "wins $N"', () => {
+      const text = generateHandText(handPreflopOnly, session3way);
+      expect(text).toContain('BTN wins $15');
+      expect(text).not.toContain('main pot');
+    });
+
+    it('複数ポットは "wins main pot / side pot" と明記される', () => {
+      const hand: HandData = {
+        ...handPreflopOnly,
+        pot: 230,
+        winners: [
+          { playerId: 'bb', amount: 90, label: 'main pot' },
+          { playerId: 'btn', amount: 140, label: 'side pot' },
+        ],
+      };
+      const text = generateHandText(hand, session3way);
+      expect(text).toContain('BB wins main pot $90');
+      expect(text).toContain('BTN wins side pot $140');
+    });
+  });
+
 });

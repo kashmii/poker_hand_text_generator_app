@@ -236,10 +236,11 @@ export function generateHandText(
       lines.push(`${posLabel} shows [${formatCardsSpaced(entry.cards)}]`);
     });
   }
-  // ウィナー
+  // ウィナー（サイドポットがある場合は "wins main pot / side pot" と明記）
   hand.winners.forEach((w) => {
     const posLabel = posLabelMap[w.playerId] ?? '';
-    lines.push(`${posLabel} wins ${c}${w.amount.toLocaleString()}`);
+    const potPart = w.label ? `${w.label} ` : '';
+    lines.push(`${posLabel} wins ${potPart}${c}${w.amount.toLocaleString()}`);
   });
 
   if (hand.notes) {

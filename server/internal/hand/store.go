@@ -33,7 +33,9 @@ const listColumns = summaryColumns + `,
 	coalesce(data->'heroHoleCards', 'null'::jsonb),
 	coalesce(data#>'{streets,flop,board}', '[]'::jsonb)
 		|| coalesce(data#>'{streets,turn,board}', '[]'::jsonb)
-		|| coalesce(data#>'{streets,river,board}', '[]'::jsonb)`
+		|| coalesce(data#>'{streets,river,board}', '[]'::jsonb),
+	coalesce(data->'heroResult', 'null'::jsonb),
+	coalesce(data#>'{session,currency}', 'null'::jsonb)`
 
 func (s *PgStore) List(ctx context.Context, userID string) ([]Summary, error) {
 	rows, err := s.pool.Query(ctx, `
@@ -48,7 +50,7 @@ func (s *PgStore) List(ctx context.Context, userID string) ([]Summary, error) {
 	summaries, err := pgx.CollectRows(rows, func(row pgx.CollectableRow) (Summary, error) {
 		var h Summary
 		err := row.Scan(&h.ID, &h.Title, &h.VenueName, &h.PlayedOn, &h.CreatedAt, &h.UpdatedAt,
-			&h.HeroHoleCards, &h.Board)
+			&h.HeroHoleCards, &h.Board, &h.HeroResult, &h.Currency)
 		return h, err
 	})
 	if err != nil {

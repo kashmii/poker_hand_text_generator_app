@@ -15,6 +15,10 @@ export interface HandSummary {
   updatedAt: string; // ISO 8601
   heroHoleCards?: Card[] | null;
   board?: Card[];
+  /** ヒーローの収支（勝ち＝正 / 負け＝負）。古いハンドや計算不能なら null。一覧のときだけ入る */
+  heroResult?: number | null;
+  /** 通貨記号（'$' など）。収支表示用。一覧のときだけ入る */
+  currency?: string | null;
 }
 
 /** Hand はハンド1件。概要に加えて data（HandData 丸ごと）を持つ。 */

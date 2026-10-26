@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import type { Card, HandData, SessionConfig } from '../types/poker';
 import type { HandSummary } from '../api/hands';
 import { generateHandText } from '../utils/formatHand';
+import { computeHeroResult } from '../utils/computeHeroResult';
 import HistoryList from '../components/HistoryList';
 
 /**
@@ -97,6 +98,8 @@ const summaries: HandSummary[] = mockHands.map((h) => ({
   updatedAt: '2026-10-24T00:00:00Z',
   heroHoleCards: h.heroHoleCards,
   board: boardOf(h),
+  heroResult: computeHeroResult(h),
+  currency: h.session?.currency ?? null,
 }));
 
 export default function DevHistoryPage() {

@@ -1,5 +1,6 @@
 import type { HandData, SessionConfig } from '../types/poker';
 import { uuid } from './uuid';
+import { computeHeroResult } from './computeHeroResult';
 
 const STREETS = ['preflop', 'flop', 'turn', 'river'] as const;
 const TITLES = [
@@ -77,7 +78,7 @@ export function generateDummyHands(session: SessionConfig, startNumber: number, 
     const pot = session.bigBlind * (4 + Math.floor(Math.random() * 20));
     const winnerId = players[Math.floor(Math.random() * players.length)].id;
 
-    return {
+    const hand: HandData = {
       id: randomId(),
       handNumber,
       dealerPosition: 0,
@@ -86,6 +87,8 @@ export function generateDummyHands(session: SessionConfig, startNumber: number, 
       winners: [{ playerId: winnerId, amount: pot }],
       title: TITLES[(handNumber - 1) % TITLES.length],
       session: { ...session },
-    } satisfies HandData;
+    };
+    hand.heroResult = computeHeroResult(hand) ?? undefined;
+    return hand;
   });
 }

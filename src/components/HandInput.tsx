@@ -11,6 +11,7 @@ import type { RecordedAction } from './hand/types';
 import { pickRandomCards } from '../utils/randomCard';
 import { reachedBoards } from '../utils/reachedBoards';
 import { uuid } from '../utils/uuid';
+import { computeHeroResult } from '../utils/computeHeroResult';
 
 const RANKS: Rank[] = ['A', 'K', 'Q', 'J', 'T', '9', '8', '7', '6', '5', '4', '3', '2'];
 const SUITS: { value: Suit; label: string; color: string }[] = [
@@ -214,6 +215,7 @@ export default function HandInput({ session, handNumber, onSave, onCancel, onUpd
       winners: winnerEntries,
       session: { ...session },
     };
+    hand.heroResult = computeHeroResult(hand) ?? undefined;
     onSave(hand);
   };
 

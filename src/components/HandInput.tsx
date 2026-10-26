@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import type { SessionConfig, HandData, Action, Card, Rank, Suit } from '../types/poker';
 import { POSITION_LABELS_BY_COUNT } from './setup/constants';
 
@@ -7,6 +7,7 @@ import PokerTable from './hand/PokerTable';
 import ActionPanel from './hand/ActionPanel';
 import BoardInput from './hand/BoardInput';
 import { ShowdownPlayerPanel, WinnerPanel, HandEndPanel } from './hand/ShowdownPanel';
+import type { WinnerEntry } from './hand/ShowdownPanel';
 import type { RecordedAction } from './hand/types';
 import { pickRandomCards } from '../utils/randomCard';
 import { reachedBoards } from '../utils/reachedBoards';
@@ -57,8 +58,11 @@ export default function HandInput({ session, handNumber, onSave, onCancel, onUpd
     confirmBoard,
     updateBoard,
     commitShowdown,
+    confirmPotWinner,
     goBack,
     players,
+    currentPot,
+    currentPotCandidates,
   } = useHandFlow(session);
 
   // ホールカード入力用ローカル state
@@ -163,7 +167,7 @@ export default function HandInput({ session, handNumber, onSave, onCancel, onUpd
   const actorIdx = players.findIndex((p) => p.id === actorId);
   const actorPositionLabel = actorIdx >= 0 ? posLabels[actorIdx] : '';
 
-  const handleSave = (winnerIdOverride?: string) => {
+  const handleSave = (winnerEntriesArg?: WinnerEntry[]) => {
     const toActions = (arr: RecordedAction[]): Action[] =>
       arr.map((a) => ({ playerId: a.playerId, type: a.type, amount: a.amount }));
 
@@ -178,11 +182,8 @@ export default function HandInput({ session, handNumber, onSave, onCancel, onUpd
       .filter((r) => r.action === 'show' && r.cards)
       .map((r) => ({ playerId: r.playerId, cards: r.cards! }));
 
-    // winner
-    const effectiveWinnerId = winnerIdOverride ?? state.winnerId;
-    const winnerEntries = effectiveWinnerId
-      ? [{ playerId: effectiveWinnerId, amount: state.pot }]
-      : [];
+    // winner（ポット毎のエントリ。サイドポットがある場合は label 付き）
+    const winnerEntries = winnerEntriesArg ?? [];
 
     const hand: HandData = {
       id: generateId(),
@@ -218,6 +219,16 @@ export default function HandInput({ session, handNumber, onSave, onCancel, onUpd
     hand.heroResult = computeHeroResult(hand) ?? undefined;
     onSave(hand);
   };
+
+  // カスケード解決が完了（phase 'done'）したら、確定したポット勝者で保存する。
+  const savedRef = useRef(false);
+  useEffect(() => {
+    if (state.phase === 'done' && !savedRef.current) {
+      savedRef.current = true;
+      handleSave(state.potWinners);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.phase]);
 
   const isBoardInput = state.phase === 'board-input';
   const isHoleCardsPhase = state.phase === 'hole-cards';
@@ -484,19 +495,23 @@ export default function HandInput({ session, handNumber, onSave, onCancel, onUpd
               winnerPositionLabel={activePosLabels[0]}
               pot={state.pot}
               currency={session.currency}
-              onConfirm={() => handleSave(soleWinnerId)}
+              onConfirm={() => handleSave([{ playerId: soleWinnerId, amount: state.pot }])}
               onBack={canGoBack ? goBack : undefined}
             />
-          ) : (
+          ) : currentPot ? (
             <WinnerPanel
-              activePlayers={activePlayers}
-              positionLabels={activePosLabels}
-              pot={state.pot}
+              pot={currentPot}
+              candidateIds={currentPotCandidates}
+              potCount={state.pots.length}
+              hasNextPot={state.potResolveIdx > 0}
+              players={players}
+              positionLabels={posLabels}
               currency={session.currency}
               showdownRecords={state.showdownRecords}
-              onConfirm={(id) => handleSave(id)}
+              onConfirm={(winnerId) => confirmPotWinner(winnerId)}
+              onBack={canGoBack ? goBack : undefined}
             />
-          )
+          ) : null
 
         ) : isBoardInput ? (
           /* ボード入力 */

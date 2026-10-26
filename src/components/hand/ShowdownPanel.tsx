@@ -2,6 +2,8 @@ import { useState } from 'react';
 import type { Card, Rank, Suit, Player } from '../../types/poker';
 import type { ShowdownRecord } from './types';
 import { pickRandomCards } from '../../utils/randomCard';
+import type { Pot, WinnerEntry } from '../../utils/sidePots';
+export type { WinnerEntry };
 
 const RANKS: Rank[] = ['A', 'K', 'Q', 'J', 'T', '9', '8', '7', '6', '5', '4', '3', '2'];
 const SUITS: { value: Suit; label: string; color: string }[] = [
@@ -268,48 +270,70 @@ export function ShowdownPlayerPanel({
 }
 
 // ============================================================
-// WinnerPanel: ウィナー選択
+// WinnerPanel: 現在解決中の1ポットの勝者選択（カスケードはフック側が駆動）
 // ============================================================
 interface WinnerPanelProps {
-  activePlayers: Player[];
+  /** 現在解決中のポット */
+  pot: Pot;
+  /** このポットの勝者候補のID（eligible − 敗退 − muck。フック側で算出） */
+  candidateIds: string[];
+  /** 全ポット数（ラベル表示の切替用） */
+  potCount: number;
+  /** 下位ポットがまだ残っているか（確定ボタンの文言切替） */
+  hasNextPot: boolean;
+  /** 全プレイヤー（id→ラベル・カード引き当て用） */
+  players: Player[];
+  /** players と同じ並びのポジションラベル */
   positionLabels: string[];
-  pot: number;
   currency: string;
   showdownRecords: ShowdownRecord[];
   onConfirm: (winnerId: string) => void;
+  /** 「1つ戻る」（フロー側の goBack） */
+  onBack?: () => void;
 }
 
 export function WinnerPanel({
-  activePlayers,
-  positionLabels,
   pot,
+  candidateIds,
+  potCount,
+  hasNextPot,
+  players,
+  positionLabels,
   currency,
   showdownRecords,
   onConfirm,
+  onBack,
 }: WinnerPanelProps) {
   const [selected, setSelected] = useState<string | null>(null);
 
+  const multiPot = potCount > 1;
+  const labelOf = (id: string) => positionLabels[players.findIndex((p) => p.id === id)] ?? '';
+  const cardsOf = (id: string) =>
+    showdownRecords.find((r) => r.playerId === id && r.action === 'show')?.cards;
+
   return (
     <div className="winner-panel">
-      <div className="winner-panel__title">ポットの勝者を選択</div>
+      <div className="winner-panel__title">
+        {multiPot ? `${pot.label} の勝者を選択` : 'ポットの勝者を選択'}
+      </div>
       <div className="winner-panel__pot">
-        POT: <span className="winner-panel__pot-amount">{currency}{pot.toLocaleString()}</span>
+        POT: <span className="winner-panel__pot-amount">{currency}{pot.amount.toLocaleString()}</span>
       </div>
 
       <div className="winner-list">
-        {activePlayers.map((p, i) => {
-          const record = showdownRecords.find((r) => r.playerId === p.id && r.action === 'show');
+        {candidateIds.map((id) => {
+          const record = cardsOf(id);
           return (
             <button
-              key={p.id}
+              key={id}
               type="button"
-              className={`winner-btn ${selected === p.id ? 'winner-btn--selected' : ''}`}
-              onClick={() => setSelected(p.id)}
+              className={`winner-btn ${selected === id ? 'winner-btn--selected' : ''}`}
+              onClick={() => setSelected(id)}
             >
-              <span className="winner-btn__pos">{positionLabels[i] ?? ''}</span>
-              {record?.cards && (
+              <span className="winner-btn__pos">{labelOf(id)}</span>
+              {record && (
                 <span className="winner-btn__cards">
-                  {record.cards.map((card, ci) => {
+                  {record.map((card, ci) => {
                     const suit = SUITS.find((s) => s.value === card.suit);
                     return (
                       <span
@@ -328,14 +352,21 @@ export function WinnerPanel({
         })}
       </div>
 
-      <button
-        type="button"
-        className="btn-primary btn-full winner-confirm-btn"
-        onClick={() => selected && onConfirm(selected)}
-        disabled={!selected}
-      >
-        保存 →
-      </button>
+      <div className="hand-end__actions">
+        {onBack && (
+          <button type="button" className="btn-secondary hand-end__back" onClick={onBack}>
+            ← 1つ戻る
+          </button>
+        )}
+        <button
+          type="button"
+          className="btn-primary hand-end__confirm"
+          onClick={() => selected && onConfirm(selected)}
+          disabled={!selected}
+        >
+          {hasNextPot ? '次のポットへ →' : '保存 →'}
+        </button>
+      </div>
     </div>
   );
 }

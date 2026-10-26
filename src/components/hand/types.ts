@@ -1,4 +1,5 @@
 import type { Card, ActionType } from '../../types/poker';
+import type { Pot, WinnerEntry } from '../../utils/sidePots';
 
 export type Street = 'preflop' | 'flop' | 'turn' | 'river';
 
@@ -41,6 +42,9 @@ export interface HandFlowState {
   currentBet: number;
   // 各プレイヤーが現在のストリートに投入した額
   contributions: Record<string, number>;
+  // 各プレイヤーのハンド通算投入額（アンティ織り込み済み・グロス）。
+  // サイドポット計算の入力。未コール分の返却は computeSidePots 側で処理する。
+  totalContributions: Record<string, number>;
   /**
    * ストリート終了の「締め切りプレイヤーID」。
    * このプレイヤーがアクション（call/check/fold）したとき、
@@ -62,4 +66,16 @@ export interface HandFlowState {
   showdownRecords: ShowdownRecord[];
   // ウィナーID（potを取ったプレイヤー）
   winnerId: string | null;
+
+  // ---- サイドポットのカスケード解決（サイド→メインの順で判定） ----
+  // 解決対象のポット一覧（computeSidePots の並び = main→side）
+  pots: Pot[];
+  // 現在解決中のポットのインデックス（pots 配列内）。上位(side)から下位(main)へ進む。未開始/終了は -1
+  potResolveIdx: number;
+  // 上位ポットの勝者（下位ポットへ持ち越す）
+  carriedWinnerId: string | null;
+  // 上位ポットで敗退し、下位ポットの候補から除外されるプレイヤー
+  eliminatedIds: Set<string>;
+  // 確定したポット勝者（カスケード中は top→main 順で積み、保存時に main→side へ並べ替える）
+  potWinners: WinnerEntry[];
 }

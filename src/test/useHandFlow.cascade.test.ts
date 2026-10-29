@@ -27,7 +27,7 @@ function makeSession3way(): SessionConfig {
 type Hook = ReturnType<typeof renderHook<ReturnType<typeof useHandFlow>, SessionConfig>>['result'];
 
 function skipHoleCards(result: Hook) {
-  act(() => { result.current.confirmHoleCards({ rank: 'A', suit: 'h' }, { rank: 'K', suit: 'h' }); });
+  act(() => { result.current.setHoleCards([{ rank: 'A', suit: 'h' }, { rank: 'K', suit: 'h' }]); result.current.startAction(); });
 }
 
 const CARDS: [Card, Card] = [{ rank: '2', suit: 'c' }, { rank: '3', suit: 'd' }];

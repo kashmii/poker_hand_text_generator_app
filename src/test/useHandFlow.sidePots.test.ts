@@ -28,7 +28,8 @@ function skipHoleCards(
   result: ReturnType<typeof renderHook<ReturnType<typeof useHandFlow>, SessionConfig>>['result'],
 ) {
   act(() => {
-    result.current.confirmHoleCards({ rank: 'A', suit: 'h' }, { rank: 'K', suit: 'h' });
+    result.current.setHoleCards([{ rank: 'A', suit: 'h' }, { rank: 'K', suit: 'h' }]);
+    result.current.startAction();
   });
 }
 

@@ -42,10 +42,11 @@ function makeSession4way(): SessionConfig {
 /** hole-cards フェーズをスキップしてアクションフェーズへ進める */
 function skipHoleCards(result: ReturnType<typeof renderHook<ReturnType<typeof useHandFlow>, SessionConfig>>['result']) {
   act(() => {
-    result.current.confirmHoleCards(
+    result.current.setHoleCards([
       { rank: 'A', suit: 'h' },
       { rank: 'K', suit: 'h' },
-    );
+    ]);
+    result.current.startAction();
   });
 }
 
@@ -691,7 +692,8 @@ describe('オールイン後のコール額検証', () => {
     // checkにはならないはず
     const { result } = renderHook(() => useHandFlow(makeSession6way()));
     act(() => {
-      result.current.confirmHoleCards({ rank: 'A', suit: 'h' }, { rank: 'K', suit: 'h' });
+      result.current.setHoleCards([{ rank: 'A', suit: 'h' }, { rank: 'K', suit: 'h' }]);
+      result.current.startAction();
     });
 
     act(() => { result.current.commitAction('allin'); });  // UTG all-in（amount未指定）

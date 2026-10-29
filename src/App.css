@@ -376,6 +376,26 @@ input[type='radio'] {
   color: var(--color-primary);
 }
 
+/* 手札の後入力の入口（テーブル図の左上） */
+.btn-hole-memo {
+  position: absolute;
+  top: 0.5rem;
+  left: 0.75rem;
+  z-index: 1;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 0.35rem 0.7rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  white-space: nowrap;
+}
+.btn-hole-memo--active {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
 .board-memo__close {
   padding: 0.1rem 0.45rem;
   font-size: 0.8rem;
@@ -1772,6 +1792,26 @@ input[type='radio'] {
   font-size: 1rem;
   font-weight: 700;
   color: var(--color-primary);
+}
+
+/* 「スキップ」はタイトル行の右端へ（「戻る」と対称）。手札入力の初期画面で使う */
+.board-input__skip-top {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  background: var(--color-surface2);
+  color: var(--color-text-muted, #9ca3af);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 0.45rem 0.85rem;
+  min-height: 38px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.board-input__skip-top:hover {
+  background: var(--color-border);
 }
 
 /* 「戻る」をタイトル行の左端へ（他画面と同じ左上。下部の専用行は廃止して縦スペースを節約） */

@@ -296,6 +296,9 @@ export function useHandFlow(session: SessionConfig) {
     contributions: initContributions(),
     totalContributions: initTotalContributions(),
     pot: smallBlind + bigBlind + ante,
+    // ポジション選択 → 手札入力（スキップ可）→ アクションの順。
+    // 手札入力は必須にせず、スキップしても後から setHoleCards で入れられる
+    // （ボード先行入力メモと同じ思想）。
     phase: 'hole-cards',
     holeCards: null,
     showdownQueue: [],
@@ -717,12 +720,18 @@ export function useHandFlow(session: SessionConfig) {
     [state, activeOrder, preflopOrder, players, playerIds, bigBlind],
   );
 
-  /** ホールカードを確定してアクションフェーズへ */
-  const confirmHoleCards = useCallback((card1: Card, card2: Card) => {
-    setHistory((h) => [...h, state]);
-    setState((prev) => ({ ...prev, holeCards: [card1, card2], phase: 'action' }));
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state]);
+  /** 手札入力画面からアクションフェーズへ進む（スキップ/入力完了で呼ぶ） */
+  const startAction = useCallback(() => {
+    setState((prev) => (prev.phase === 'hole-cards' ? { ...prev, phase: 'action' } : prev));
+  }, []);
+
+  /**
+   * 手札を後から設定/クリアする。フェーズは進めない（ボード先行入力メモと同じ思想）。
+   * ペアが揃っていないときは null を渡してクリアする。
+   */
+  const setHoleCards = useCallback((cards: [Card, Card] | null) => {
+    setState((prev) => ({ ...prev, holeCards: cards }));
+  }, []);
 
   /** ボードカード確定してアクションフェーズへ（アクション可能者がいない場合は次のボード入力へ） */
   const confirmBoard = useCallback(() => {
@@ -838,6 +847,11 @@ export function useHandFlow(session: SessionConfig) {
     });
   }, []);
 
+  /** 1人目のアクション入力から手札入力画面へ戻る（履歴が空のときだけ） */
+  const backToHoleCards = useCallback(() => {
+    setState((prev) => (prev.phase === 'action' ? { ...prev, phase: 'hole-cards' } : prev));
+  }, []);
+
   const actorId = currentActorId(state, preflopOrder);
   const actorPlayer = players.find((p) => p.id === actorId) ?? null;
   const toCall = actorId ? callAmount(state, actorId) : 0;
@@ -925,9 +939,12 @@ export function useHandFlow(session: SessionConfig) {
     actorPlayer,
     toCall,
     canGoBack: history.length > 0,
+    canBackToHoleCards: history.length === 0 && state.phase === 'action',
     canStraddle,
     currentStraddle,
-    confirmHoleCards,
+    startAction,
+    backToHoleCards,
+    setHoleCards,
     commitAction,
     confirmBoard,
     updateBoard,

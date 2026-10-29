@@ -31,7 +31,8 @@ function skipHoleCards(
   result: ReturnType<typeof renderHook<ReturnType<typeof useHandFlow>, SessionConfig>>['result'],
 ) {
   act(() => {
-    result.current.confirmHoleCards({ rank: 'A', suit: 'h' }, { rank: 'K', suit: 'h' });
+    result.current.setHoleCards([{ rank: 'A', suit: 'h' }, { rank: 'K', suit: 'h' }]);
+    result.current.startAction();
   });
 }
 
@@ -77,39 +78,64 @@ describe('useHandFlow: goBack（履歴管理）', () => {
   });
 
   // ------------------------------------------------------------------
-  // confirmHoleCards 後の履歴
+  // 手札入力フェーズ（setHoleCards / startAction）
   // ------------------------------------------------------------------
-  describe('confirmHoleCards 後', () => {
+  describe('手札入力フェーズ', () => {
 
-    it('confirmHoleCards 後に canGoBack が true になる', () => {
+    it('初期フェーズは hole-cards（手札入力画面）', () => {
       const { result } = renderHook(() => useHandFlow(makeSession3way()));
-      skipHoleCards(result);
-      expect(result.current.canGoBack).toBe(true);
-    });
-
-    it('confirmHoleCards 後に history が 1 件になる', () => {
-      const { result } = renderHook(() => useHandFlow(makeSession3way()));
-      skipHoleCards(result);
-      expect(result.current.history.length).toBe(1);
-    });
-
-    it('confirmHoleCards 後に goBack すると hole-cards フェーズに戻る', () => {
-      const { result } = renderHook(() => useHandFlow(makeSession3way()));
-      skipHoleCards(result);
-      expect(result.current.state.phase).toBe('action');
-
-      act(() => { result.current.goBack(); });
-
       expect(result.current.state.phase).toBe('hole-cards');
     });
 
-    it('goBack 後は canGoBack が false に戻る', () => {
+    it('startAction で action フェーズへ進む（スキップ相当）', () => {
+      const { result } = renderHook(() => useHandFlow(makeSession3way()));
+      act(() => { result.current.startAction(); });
+      expect(result.current.state.phase).toBe('action');
+    });
+
+    it('手札設定・フェーズ遷移では history を積まない（canGoBack は false のまま）', () => {
       const { result } = renderHook(() => useHandFlow(makeSession3way()));
       skipHoleCards(result);
-
-      act(() => { result.current.goBack(); });
-
       expect(result.current.canGoBack).toBe(false);
+      expect(result.current.history.length).toBe(0);
+    });
+
+    it('1人目のアクション入力では canBackToHoleCards が true、backToHoleCards で手札入力へ戻る', () => {
+      const { result } = renderHook(() => useHandFlow(makeSession3way()));
+      expect(result.current.canBackToHoleCards).toBe(false);
+      skipHoleCards(result);
+      expect(result.current.canBackToHoleCards).toBe(true);
+
+      act(() => { result.current.backToHoleCards(); });
+
+      expect(result.current.state.phase).toBe('hole-cards');
+      expect(result.current.canBackToHoleCards).toBe(false);
+      // 入力済みの手札は保持される
+      expect(result.current.state.holeCards).not.toBeNull();
+    });
+
+    it('アクションを1つ入れると canBackToHoleCards は false になる', () => {
+      const { result } = renderHook(() => useHandFlow(makeSession3way()));
+      skipHoleCards(result);
+      act(() => { result.current.commitAction('fold'); });
+      expect(result.current.canBackToHoleCards).toBe(false);
+      expect(result.current.canGoBack).toBe(true);
+    });
+
+    it('setHoleCards で手札が state に反映される', () => {
+      const { result } = renderHook(() => useHandFlow(makeSession3way()));
+      skipHoleCards(result);
+      expect(result.current.state.holeCards).toEqual([
+        { rank: 'A', suit: 'h' },
+        { rank: 'K', suit: 'h' },
+      ]);
+    });
+
+    it('setHoleCards(null) で手札をクリアできる', () => {
+      const { result } = renderHook(() => useHandFlow(makeSession3way()));
+      skipHoleCards(result);
+      act(() => { result.current.setHoleCards(null); });
+      expect(result.current.state.holeCards).toBeNull();
     });
 
   });
@@ -350,11 +376,11 @@ describe('useHandFlow: goBack（履歴管理）', () => {
 
     it('アクションのたびに history が 1 件ずつ増える', () => {
       const { result } = renderHook(() => useHandFlow(makeSession3way()));
-      skipHoleCards(result); // history=1
+      skipHoleCards(result); // history=0（手札設定は履歴に積まない）
 
+      act(() => { result.current.commitAction('call'); });  // history=1
       act(() => { result.current.commitAction('call'); });  // history=2
-      act(() => { result.current.commitAction('call'); });  // history=3
-      expect(result.current.history.length).toBe(3);
+      expect(result.current.history.length).toBe(2);
     });
 
     it('goBack のたびに history が 1 件ずつ減る', () => {
@@ -362,13 +388,13 @@ describe('useHandFlow: goBack（履歴管理）', () => {
       skipHoleCards(result);
       act(() => { result.current.commitAction('call'); });
       act(() => { result.current.commitAction('call'); });
-      expect(result.current.history.length).toBe(3);
-
-      act(() => { result.current.goBack(); });
       expect(result.current.history.length).toBe(2);
 
       act(() => { result.current.goBack(); });
       expect(result.current.history.length).toBe(1);
+
+      act(() => { result.current.goBack(); });
+      expect(result.current.history.length).toBe(0);
     });
 
     it('history を使い切った後は canGoBack が false になる', () => {
@@ -377,7 +403,6 @@ describe('useHandFlow: goBack（履歴管理）', () => {
       act(() => { result.current.commitAction('call'); });
 
       act(() => { result.current.goBack(); }); // commitAction を戻す
-      act(() => { result.current.goBack(); }); // confirmHoleCards を戻す
 
       expect(result.current.canGoBack).toBe(false);
       expect(result.current.history.length).toBe(0);
@@ -387,12 +412,12 @@ describe('useHandFlow: goBack（履歴管理）', () => {
       const { result } = renderHook(() => useHandFlow(makeSession3way()));
       skipHoleCards(result);
       act(() => { result.current.commitAction('call'); });
-      expect(result.current.history.length).toBe(2);
+      expect(result.current.history.length).toBe(1);
 
-      act(() => { result.current.goBack(); }); // history=1
-      act(() => { result.current.commitAction('raise', 30); }); // history=2
+      act(() => { result.current.goBack(); }); // history=0
+      act(() => { result.current.commitAction('raise', 30); }); // history=1
 
-      expect(result.current.history.length).toBe(2);
+      expect(result.current.history.length).toBe(1);
       expect(result.current.state.currentBet).toBe(30);
     });
 

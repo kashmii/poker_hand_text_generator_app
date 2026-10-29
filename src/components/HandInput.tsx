@@ -52,8 +52,11 @@ export default function HandInput({ session, handNumber, onSave, onCancel, onUpd
     actorPlayer,
     toCall,
     canGoBack,
+    canBackToHoleCards,
+    backToHoleCards,
     canStraddle,
-    confirmHoleCards,
+    startAction,
+    setHoleCards: commitHoleCards,
     commitAction,
     confirmBoard,
     updateBoard,
@@ -72,6 +75,17 @@ export default function HandInput({ session, handNumber, onSave, onCancel, onUpd
 
   // ボード先行入力メモを開いているか
   const [memoOpen, setMemoOpen] = useState(false);
+  // 手札の後入力パネルを開いているか
+  const [holeMemoOpen, setHoleMemoOpen] = useState(false);
+
+  /** 手札後入力パネルを開く。現在の手札（state）を編集バッファへ読み込む */
+  const openHoleMemo = () => {
+    setHoleCards(state.holeCards ? [state.holeCards[0], state.holeCards[1]] : [null, null]);
+    setHoleSlot(0);
+    setHolePendingRank(null);
+    setMemoOpen(false);
+    setHoleMemoOpen(true);
+  };
 
   const handleHoleSlotClick = (idx: 0 | 1) => {
     setHoleSlot(idx);
@@ -86,12 +100,14 @@ export default function HandInput({ session, handNumber, onSave, onCancel, onUpd
     const next: [Card | null, Card | null] = [...holeCards] as [Card | null, Card | null];
     next[holeSlot] = card;
     setHolePendingRank(null);
-    // 両スロット埋まったら自動確定
+    setHoleCards(next);
+    // 両スロット埋まったらエンジンへ反映。初期入力画面では入力完了でアクションへ進む
+    // （後入力パネルはフェーズを進めずに開いたまま）
     if (next[0] && next[1]) {
-      confirmHoleCards(next[0], next[1]);
+      commitHoleCards([next[0], next[1]]);
+      if (!holeMemoOpen) startAction();
       return;
     }
-    setHoleCards(next);
     // 次の空きスロットへ
     if (holeSlot === 0 && next[1] === null) setHoleSlot(1);
     else if (holeSlot === 1 && next[0] === null) setHoleSlot(0);
@@ -101,6 +117,7 @@ export default function HandInput({ session, handNumber, onSave, onCancel, onUpd
     const next: [Card | null, Card | null] = [...holeCards] as [Card | null, Card | null];
     next[idx] = null;
     setHoleCards(next);
+    commitHoleCards(null); // ペア未成立のためエンジン側はクリア
     setHoleSlot(idx);
     setHolePendingRank(null);
   };
@@ -266,6 +283,102 @@ export default function HandInput({ session, handNumber, onSave, onCancel, onUpd
   // 生き残りが1人なら勝者は決まっているので、勝者選択の代わりにハンド終了の確認だけ出す
   const soleWinnerId = isWinner && activePlayers.length === 1 ? activePlayers[0].id : null;
 
+  // 手札入力の DEV ランダム入力ボタン（初期入力画面・後入力パネルで共用）
+  const holeRndmBtn = import.meta.env.DEV ? (
+    <button
+      type="button"
+      className="rndm-btn"
+      onClick={() => {
+        const filled = holeCards.filter((c): c is Card => c !== null);
+        const need = holeCards.filter((c) => c === null).length;
+        const picked = pickRandomCards(filled, need);
+        const next: [Card | null, Card | null] = [...holeCards] as [Card | null, Card | null];
+        let pi = 0;
+        next.forEach((c, i) => { if (c === null && pi < picked.length) next[i] = picked[pi++]; });
+        setHolePendingRank(null);
+        setHoleCards(next);
+        if (next[0] && next[1]) {
+          commitHoleCards([next[0], next[1]]);
+          if (!holeMemoOpen) startAction();
+        }
+      }}
+      disabled={holeAllFilled}
+    >
+      rndm
+    </button>
+  ) : null;
+
+  // 手札入力のスロット＋ランク/スーツピッカー（初期入力画面・後入力パネルで共用）
+  const holePickerBody = (
+    <>
+      <div className="board-input__slots">
+        {([0, 1] as const).map((idx) => {
+          const disp = cardDisp(holeCards[idx]);
+          const isActive = holeSlot === idx;
+          return (
+            <button
+              key={idx}
+              type="button"
+              className={`board-slot ${isActive ? 'board-slot--active' : ''} ${holeCards[idx] ? 'board-slot--filled' : ''}`}
+              onClick={() => handleHoleSlotClick(idx)}
+            >
+              {disp ? (
+                <>
+                  <span className="board-slot__card" style={{ color: disp.color }}>{disp.label}</span>
+                  <span
+                    className="board-slot__clear"
+                    role="button"
+                    onClick={(e) => { e.stopPropagation(); handleHoleClear(idx); }}
+                  >×</span>
+                </>
+              ) : (
+                <span className="board-slot__empty">{idx + 1}</span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="board-picker-panel">
+        <div className="board-picker__ranks">
+          {RANKS.map((r) => {
+            const fullyUsed = isHoleRankFullyUsed(r);
+            return (
+              <button
+                key={r}
+                type="button"
+                className={`rank-btn ${holePendingRank === r ? 'rank-btn--active' : ''} ${fullyUsed ? 'rank-btn--used' : ''}`}
+                onClick={() => { if (!fullyUsed) handleHoleRank(r); }}
+                disabled={fullyUsed}
+              >
+                {r}
+              </button>
+            );
+          })}
+        </div>
+        {/* スーツ選択（ランク選択後にアクティブ化） */}
+        <div className={`board-picker__suits ${holePendingRank ? 'board-picker__suits--active' : ''}`}>
+          {SUITS.map((s) => {
+            const used = holePendingRank ? isHoleSuitUsed(holePendingRank, s.value) : false;
+            return (
+              <button
+                key={s.value}
+                type="button"
+                className={`suit-btn suit-btn--large ${used ? 'suit-btn--used' : ''}`}
+                style={{ color: used ? '#4b5563' : s.color }}
+                onClick={() => { if (holePendingRank) handleHoleSuit(s.value); }}
+                disabled={!holePendingRank || used}
+                tabIndex={holePendingRank ? 0 : -1}
+              >
+                {s.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </>
+  );
+
   return (
     <div className="hand-input-v2">
       {/* ヘッダー */}
@@ -305,6 +418,16 @@ export default function HandInput({ session, handNumber, onSave, onCancel, onUpd
             onClick={() => setMemoOpen((v) => !v)}
           >
             🃏 ボード入力{boardFilledCount > 0 ? ` ${boardFilledCount}/5` : ''}
+          </button>
+        )}
+        {/* 手札の後入力の入口（手札入力フェーズ中は入力画面があるので出さない） */}
+        {canOpenMemo && !isHoleCardsPhase && (
+          <button
+            type="button"
+            className={`btn-hole-memo ${holeMemoOpen ? 'btn-hole-memo--active' : ''}`}
+            onClick={() => (holeMemoOpen ? setHoleMemoOpen(false) : openHoleMemo())}
+          >
+            🂠 手札入力{state.holeCards ? ' ✓' : ''}
           </button>
         )}
       </div>
@@ -358,35 +481,34 @@ export default function HandInput({ session, handNumber, onSave, onCancel, onUpd
             </div>
           </div>
 
-        ) : isHoleCardsPhase ? (
-          /* ホールカード入力 */
+        ) : holeMemoOpen ? (
+          /* 手札の後入力: state.holeCards へ直接書き込む（phase は進めない） */
           <div className="board-input-wrap">
             <div className="board-input__title">
-              手札
-              {import.meta.env.DEV && (
-                <button
-                  type="button"
-                  className="rndm-btn"
-                  onClick={() => {
-                    const filled = holeCards.filter((c): c is Card => c !== null);
-                    const need = holeCards.filter((c) => c === null).length;
-                    const picked = pickRandomCards(filled, need);
-                    const next: [Card | null, Card | null] = [...holeCards] as [Card | null, Card | null];
-                    let pi = 0;
-                    next.forEach((c, i) => { if (c === null && pi < picked.length) next[i] = picked[pi++]; });
-                    setHolePendingRank(null);
-                    // 両スロット埋まったら自動確定
-                    if (next[0] && next[1]) {
-                      confirmHoleCards(next[0], next[1]);
-                    } else {
-                      setHoleCards(next);
-                    }
-                  }}
-                  disabled={holeAllFilled}
-                >
-                  rndm
-                </button>
-              )}
+              手札入力
+              {holeRndmBtn}
+              <button type="button" className="board-memo__close" onClick={() => setHoleMemoOpen(false)}>
+                ✕
+              </button>
+            </div>
+            {holePickerBody}
+            <div className="board-input__actions">
+              <button
+                type="button"
+                className="btn-primary board-input__confirm"
+                onClick={() => setHoleMemoOpen(false)}
+              >
+                閉じる
+              </button>
+            </div>
+          </div>
+
+        ) : isHoleCardsPhase ? (
+          /* 手札入力（初期）: 2枚入れると自動でアクションへ。スキップで手札なしのまま進める */
+          <div className="board-input-wrap">
+            <div className="board-input__title">
+              手札入力
+              {holeRndmBtn}
               <button
                 type="button"
                 className="board-input__back-top"
@@ -394,73 +516,11 @@ export default function HandInput({ session, handNumber, onSave, onCancel, onUpd
               >
                 ← 戻る
               </button>
+              <button type="button" className="board-input__skip-top" onClick={startAction}>
+                スキップ
+              </button>
             </div>
-
-            <div className="board-input__slots">
-              {([0, 1] as const).map((idx) => {
-                const disp = cardDisp(holeCards[idx]);
-                const isActive = holeSlot === idx;
-                return (
-                  <button
-                    key={idx}
-                    type="button"
-                    className={`board-slot ${isActive ? 'board-slot--active' : ''} ${holeCards[idx] ? 'board-slot--filled' : ''}`}
-                    onClick={() => handleHoleSlotClick(idx)}
-                  >
-                    {disp ? (
-                      <>
-                        <span className="board-slot__card" style={{ color: disp.color }}>{disp.label}</span>
-                        <span
-                          className="board-slot__clear"
-                          role="button"
-                          onClick={(e) => { e.stopPropagation(); handleHoleClear(idx); }}
-                        >×</span>
-                      </>
-                    ) : (
-                      <span className="board-slot__empty">{idx + 1}</span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-
-            <div className="board-picker-panel">
-              <div className="board-picker__ranks">
-                {RANKS.map((r) => {
-                  const fullyUsed = isHoleRankFullyUsed(r);
-                  return (
-                    <button
-                      key={r}
-                      type="button"
-                      className={`rank-btn ${holePendingRank === r ? 'rank-btn--active' : ''} ${fullyUsed ? 'rank-btn--used' : ''}`}
-                      onClick={() => { if (!fullyUsed) handleHoleRank(r); }}
-                      disabled={fullyUsed}
-                    >
-                      {r}
-                    </button>
-                  );
-                })}
-              </div>
-              {/* スーツ選択（ランク選択後にアクティブ化） */}
-              <div className={`board-picker__suits ${holePendingRank ? 'board-picker__suits--active' : ''}`}>
-                {SUITS.map((s) => {
-                  const used = holePendingRank ? isHoleSuitUsed(holePendingRank, s.value) : false;
-                  return (
-                    <button
-                      key={s.value}
-                      type="button"
-                      className={`suit-btn suit-btn--large ${used ? 'suit-btn--used' : ''}`}
-                      style={{ color: used ? '#4b5563' : s.color }}
-                      onClick={() => { if (holePendingRank) handleHoleSuit(s.value); }}
-                      disabled={!holePendingRank || used}
-                      tabIndex={holePendingRank ? 0 : -1}
-                    >
-                      {s.label}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
+            {holePickerBody}
           </div>
 
         ) : isShowdown && currentShowdownPlayer ? (
@@ -534,11 +594,11 @@ export default function HandInput({ session, handNumber, onSave, onCancel, onUpd
             currentBet={state.currentBet}
             pot={state.pot}
             currency={session.currency}
-            canGoBack={canGoBack}
+            canGoBack={canGoBack || canBackToHoleCards}
             canStraddle={canStraddle}
             straddleAmount={state.currentBet * 2}
             onAction={commitAction}
-            onBack={goBack}
+            onBack={canGoBack ? goBack : backToHoleCards}
           />
         )}
       </div>

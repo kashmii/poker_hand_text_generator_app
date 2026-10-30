@@ -236,11 +236,23 @@ export function generateHandText(
       lines.push(`${posLabel} shows [${formatCardsSpaced(entry.cards)}]`);
     });
   }
-  // ウィナー（サイドポットがある場合は "wins main pot / side pot" と明記）
+  // ウィナー（サイドポットがある場合は "wins main pot / side pot" と明記）。
+  // 同じポットに複数の勝者がいればチョップ。端数で額が揃わないことがあるので1人1行で実額を出す。
+  const hasSidePot = hand.winners.some((w) => w.label && w.label !== 'main pot');
+  const winnersPerPot: Record<string, number> = {};
+  hand.winners.forEach((w) => {
+    if (w.label) winnersPerPot[w.label] = (winnersPerPot[w.label] ?? 0) + 1;
+  });
   hand.winners.forEach((w) => {
     const posLabel = posLabelMap[w.playerId] ?? '';
+    const amount = `${c}${w.amount.toLocaleString()}`;
+    if (w.label && winnersPerPot[w.label] > 1) {
+      const potPart = hasSidePot ? w.label : 'the pot';
+      lines.push(`${posLabel} splits ${potPart} ${amount}`);
+      return;
+    }
     const potPart = w.label ? `${w.label} ` : '';
-    lines.push(`${posLabel} wins ${potPart}${c}${w.amount.toLocaleString()}`);
+    lines.push(`${posLabel} wins ${potPart}${amount}`);
   });
 
   if (hand.notes) {

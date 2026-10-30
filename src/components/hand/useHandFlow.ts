@@ -3,8 +3,19 @@ import type { SessionConfig, ActionType, Card } from '../../types/poker';
 import type { HandFlowState, RecordedAction, ShowdownRecord, Street } from './types';
 import { computeSidePots } from '../../utils/sidePots';
 import type { Pot, WinnerEntry } from '../../utils/sidePots';
+import { splitPot } from '../../utils/splitPot';
+import { evaluateShowdown } from '../../utils/evaluateShowdown';
+import type { ShowdownEvaluation } from '../../utils/evaluateShowdown';
 
 const STREETS: Street[] = ['preflop', 'flop', 'turn', 'river'];
+
+/**
+ * ショーダウンの勝者を手札評価で自動確定するか（チョップ含む）。
+ * true: ボード5枚＋候補全員の手札が揃っていれば「ポットの勝者を選択」画面を出さずに確定する。
+ * false: 従来どおり毎回 WinnerPanel で勝者を選ぶ（自動判定は初期選択として出るだけ）。
+ * 手動に戻すときはここを false にする（フックの options.autoResolve でも上書きできる）。
+ */
+export const AUTO_RESOLVE_WINNERS = true;
 
 function emptyStreets(): Record<Street, RecordedAction[]> {
   return { preflop: [], flop: [], turn: [], river: [] };
@@ -117,17 +128,53 @@ function buildShowdownQueue(
 }
 
 
+/** ボード5枚と、候補全員の show 済みの手札から勝者を判定する。揃っていなければ null */
+function evaluatePot(
+  board: (Card | null)[],
+  candidateIds: string[],
+  showdownRecords: ShowdownRecord[],
+): ShowdownEvaluation | null {
+  const boardCards = board.filter((c): c is Card => c !== null);
+  const hands: { playerId: string; cards: [Card, Card] }[] = [];
+  for (const id of candidateIds) {
+    const cards = showdownRecords.find((r) => r.playerId === id && r.action === 'show')?.cards;
+    if (!cards) return null;
+    hands.push({ playerId: id, cards });
+  }
+  return evaluateShowdown(boardCards, hands);
+}
+
+/**
+ * 1ポットぶんの獲得エントリを作る。勝者が複数（チョップ）なら splitPot で分割する。
+ * 端数の優先順は postflop のアクション順（SB が最優先）。
+ * 複数ポット、またはチョップのときは label を付ける（チョップを後段で識別するため）。
+ */
+function buildPotEntries(
+  pot: Pot,
+  winnerIds: string[],
+  multiPot: boolean,
+  playerIds: string[],
+): WinnerEntry[] {
+  const priority = buildPostflopOrder(playerIds, new Set());
+  const withLabel = multiPot || winnerIds.length > 1;
+  return splitPot(pot.amount, winnerIds, priority).map((e) => ({
+    playerId: e.playerId,
+    amount: e.amount,
+    ...(withLabel ? { label: pot.label } : {}),
+  }));
+}
+
 /**
  * サイドポットのカスケード解決の「次の一手」。
  * - showdown: このポットでまだ見せていない参加者を見せる
  * - winner: このポットの勝者を選ぶ
- * - done: 全ポット解決済み（potWinners は top→main 順）
+ * - done: 全ポット解決済み（potWinners は main→side 順）
  */
 type CascadeStep =
   | {
       kind: 'showdown';
       potResolveIdx: number;
-      carriedWinnerId: string | null;
+      carriedWinnerIds: string[];
       eliminatedIds: Set<string>;
       potWinners: WinnerEntry[];
       showdownQueue: string[];
@@ -135,7 +182,7 @@ type CascadeStep =
   | {
       kind: 'winner';
       potResolveIdx: number;
-      carriedWinnerId: string | null;
+      carriedWinnerIds: string[];
       eliminatedIds: Set<string>;
       potWinners: WinnerEntry[];
     }
@@ -145,18 +192,23 @@ type CascadeStep =
  * 上位(side)ポットから下位(main)ポットへ順に解決し、次にユーザー操作が必要なステップを返す。
  * - 争い(生存候補2人以上)のポットは、まだ見せていない参加者を showdown させ、その後 winner 選択。
  * - 1人以下のポットは無抽選で確定（ショー不要）し、勝者を下位へ持ち越す。
+ * - チョップ（勝者が複数）は全員を下位へ持ち越す。
  * - 上位ポットで敗退した人は下位ポットの候補から除外される。
  */
 function advanceCascade(params: {
   pots: Pot[];
   startIdx: number;
-  carried: string | null;
+  carried: string[];
   eliminated: Set<string>;
   potWinners: WinnerEntry[];
   showdownRecords: ShowdownRecord[];
   streets: Record<Street, RecordedAction[]>;
   playerIds: string[];
   foldedIds: Set<string>;
+  /** 自動確定の判定に使うボード（フロップ→ターン→リバー順） */
+  board: (Card | null)[];
+  /** true なら、判定できるポットは勝者選択を出さずに確定する */
+  autoResolve: boolean;
 }): CascadeStep {
   const { pots, playerIds, foldedIds, streets } = params;
   let idx = params.startIdx;
@@ -170,13 +222,10 @@ function advanceCascade(params: {
   const multi = pots.length > 1;
   const order = buildShowdownQueue(streets, playerIds, foldedIds); // ラストアグレッサー順
 
-  const award = (pot: Pot, winnerId: string) => {
-    potWinners.push({
-      playerId: winnerId,
-      amount: pot.amount,
-      ...(multi ? { label: pot.label } : {}),
-    });
-    carried = winnerId;
+  // 上位(side)から下位(main)へ解決していくので、先頭に積んで常に main→side 順を保つ
+  const award = (pot: Pot, winnerIds: string[]) => {
+    potWinners.unshift(...buildPotEntries(pot, winnerIds, multi, playerIds));
+    carried = winnerIds;
   };
 
   while (idx >= 0) {
@@ -184,8 +233,8 @@ function advanceCascade(params: {
     const live = pot.eligiblePlayerIds.filter((id) => !eliminated.has(id));
 
     if (live.length <= 1) {
-      const winner = live[0] ?? carried;
-      if (winner) award(pot, winner);
+      const winners = live.length > 0 ? live : carried;
+      if (winners.length > 0) award(pot, winners);
       idx--;
       continue;
     }
@@ -193,23 +242,38 @@ function advanceCascade(params: {
     // 争いのあるポット: まだ見せていない参加者を見せる
     const needShow = order.filter((id) => live.includes(id) && !shownIds.has(id));
     if (needShow.length > 0) {
-      return { kind: 'showdown', potResolveIdx: idx, carriedWinnerId: carried, eliminatedIds: eliminated, potWinners, showdownQueue: needShow };
+      return { kind: 'showdown', potResolveIdx: idx, carriedWinnerIds: carried, eliminatedIds: eliminated, potWinners, showdownQueue: needShow };
     }
 
     // 全員 show/muck 済み → muck を除いた候補で判定
     const liveNonMucked = live.filter((id) => !muckedIds.has(id));
     if (liveNonMucked.length <= 1) {
-      const winner = liveNonMucked[0] ?? carried;
-      if (winner) award(pot, winner);
+      const winners = liveNonMucked.length > 0 ? liveNonMucked : carried;
+      if (winners.length > 0) award(pot, winners);
       idx--;
       continue;
     }
-    return { kind: 'winner', potResolveIdx: idx, carriedWinnerId: carried, eliminatedIds: eliminated, potWinners };
+
+    // 自動確定: ボードと全員の手札が揃っていれば、勝者選択を出さずに判定する（同率はチョップ）
+    if (params.autoResolve) {
+      const evaluation = evaluatePot(params.board, liveNonMucked, params.showdownRecords);
+      if (evaluation) {
+        award(pot, evaluation.winnerIds);
+        // 勝者以外（muck含む）は下位ポットの候補から除外
+        live.forEach((id) => {
+          if (!evaluation.winnerIds.includes(id)) eliminated.add(id);
+        });
+        muckedIds.forEach((id) => eliminated.add(id));
+        idx--;
+        continue;
+      }
+    }
+    return { kind: 'winner', potResolveIdx: idx, carriedWinnerIds: carried, eliminatedIds: eliminated, potWinners };
   }
   return { kind: 'done', potWinners };
 }
 
-/** CascadeStep を state に反映する。done のときは potWinners を main→side 順へ並べ替える。 */
+/** CascadeStep を state に反映する。 */
 function applyCascadeStep(base: HandFlowState, pots: Pot[], step: CascadeStep): HandFlowState {
   if (step.kind === 'done') {
     return {
@@ -218,8 +282,8 @@ function applyCascadeStep(base: HandFlowState, pots: Pot[], step: CascadeStep): 
       phase: 'done',
       potResolveIdx: -1,
       showdownQueue: [],
-      carriedWinnerId: null,
-      potWinners: [...step.potWinners].reverse(), // top→main で積んだので反転して main→side
+      carriedWinnerIds: [],
+      potWinners: step.potWinners,
     };
   }
   if (step.kind === 'showdown') {
@@ -228,7 +292,7 @@ function applyCascadeStep(base: HandFlowState, pots: Pot[], step: CascadeStep): 
       pots,
       phase: 'showdown',
       potResolveIdx: step.potResolveIdx,
-      carriedWinnerId: step.carriedWinnerId,
+      carriedWinnerIds: step.carriedWinnerIds,
       eliminatedIds: step.eliminatedIds,
       potWinners: step.potWinners,
       showdownQueue: step.showdownQueue,
@@ -239,14 +303,18 @@ function applyCascadeStep(base: HandFlowState, pots: Pot[], step: CascadeStep): 
     pots,
     phase: 'winner',
     potResolveIdx: step.potResolveIdx,
-    carriedWinnerId: step.carriedWinnerId,
+    carriedWinnerIds: step.carriedWinnerIds,
     eliminatedIds: step.eliminatedIds,
     potWinners: step.potWinners,
     showdownQueue: [],
   };
 }
 
-export function useHandFlow(session: SessionConfig) {
+export function useHandFlow(
+  session: SessionConfig,
+  options: { autoResolve?: boolean } = {},
+) {
+  const autoResolve = options.autoResolve ?? AUTO_RESOLVE_WINNERS;
   const { players, smallBlind, bigBlind, ante } = session;
   const playerIds = players.map((p) => p.id);
 
@@ -306,7 +374,7 @@ export function useHandFlow(session: SessionConfig) {
     winnerId: null,
     pots: [],
     potResolveIdx: -1,
-    carriedWinnerId: null,
+    carriedWinnerIds: [],
     eliminatedIds: new Set(),
     potWinners: [],
     // プリフロップ開始時: BBが必ず最後にアクションする締め切り人
@@ -391,13 +459,15 @@ export function useHandFlow(session: SessionConfig) {
       const step = advanceCascade({
         pots,
         startIdx: pots.length - 1,
-        carried: null,
+        carried: [],
         eliminated: new Set(),
         potWinners: [],
         showdownRecords: [],
         streets: newState.streets,
         playerIds,
         foldedIds: newState.foldedIds,
+        board: [...newState.boards.flop, ...newState.boards.turn, ...newState.boards.river],
+        autoResolve,
       });
       return applyCascadeStep(base, pots, step);
     }
@@ -779,13 +849,15 @@ export function useHandFlow(session: SessionConfig) {
       const step = advanceCascade({
         pots: prev.pots,
         startIdx: prev.potResolveIdx,
-        carried: prev.carriedWinnerId,
+        carried: prev.carriedWinnerIds,
         eliminated: prev.eliminatedIds,
         potWinners: prev.potWinners,
         showdownRecords: newRecords,
         streets: prev.streets,
         playerIds,
         foldedIds: prev.foldedIds,
+        board: [...prev.boards.flop, ...prev.boards.turn, ...prev.boards.river],
+        autoResolve,
       });
       return applyCascadeStep({ ...prev, showdownRecords: newRecords }, prev.pots, step);
     });
@@ -794,9 +866,11 @@ export function useHandFlow(session: SessionConfig) {
 
   /**
    * 現在のポットの勝者を確定し、次の（下位）ポットへ進む。
-   * 敗者は下位ポットの候補から除外し、勝者を持ち越す。全ポット終了で done。
+   * 勝者が複数ならチョップ（ポットを等分し、端数は postflop のアクション順の早い人へ）。
+   * 敗者は下位ポットの候補から除外し、勝者全員を持ち越す。全ポット終了で done。
    */
-  const confirmPotWinner = useCallback((winnerId: string) => {
+  const confirmPotWinner = useCallback((winnerIds: string[]) => {
+    if (winnerIds.length === 0) return;
     setHistory((h) => [...h, state]);
     setState((prev) => {
       const idx = prev.potResolveIdx;
@@ -809,28 +883,31 @@ export function useHandFlow(session: SessionConfig) {
       const live = pot.eligiblePlayerIds.filter((id) => !prev.eliminatedIds.has(id));
 
       const newEliminated = new Set(prev.eliminatedIds);
-      // この勝者以外（muck含む）は下位ポットの候補から除外
+      // 勝者以外（muck含む）は下位ポットの候補から除外
       live.forEach((id) => {
-        if (id !== winnerId) newEliminated.add(id);
+        if (!winnerIds.includes(id)) newEliminated.add(id);
       });
       muckedIds.forEach((id) => newEliminated.add(id));
 
       const multi = prev.pots.length > 1;
+      // 下位ポットほど前に来るよう先頭へ積む（main→side 順を保つ）
       const newPotWinners = [
+        ...buildPotEntries(pot, winnerIds, multi, playerIds),
         ...prev.potWinners,
-        { playerId: winnerId, amount: pot.amount, ...(multi ? { label: pot.label } : {}) },
       ];
 
       const step = advanceCascade({
         pots: prev.pots,
         startIdx: idx - 1,
-        carried: winnerId,
+        carried: winnerIds,
         eliminated: newEliminated,
         potWinners: newPotWinners,
         showdownRecords: prev.showdownRecords,
         streets: prev.streets,
         playerIds,
         foldedIds: prev.foldedIds,
+        board: [...prev.boards.flop, ...prev.boards.turn, ...prev.boards.river],
+        autoResolve,
       });
       return applyCascadeStep(prev, prev.pots, step);
     });
@@ -877,6 +954,16 @@ export function useHandFlow(session: SessionConfig) {
       (id) => !state.eliminatedIds.has(id) && !mucked.has(id),
     );
   })();
+
+  // 現在のポットの自動判定（ボード5枚＋候補全員の手札が揃っているときだけ）。
+  // 揃っていなければ null で、勝者は手動選択になる。
+  const currentPotSuggestion = currentPot
+    ? evaluatePot(
+        [...state.boards.flop, ...state.boards.turn, ...state.boards.river],
+        currentPotCandidates,
+        state.showdownRecords,
+      )
+    : null;
 
   /**
    * ストラドルボタンを表示するかどうかを判定する。
@@ -956,5 +1043,6 @@ export function useHandFlow(session: SessionConfig) {
     sidePots,
     currentPot,
     currentPotCandidates,
+    currentPotSuggestion,
   };
 }

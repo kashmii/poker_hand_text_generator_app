@@ -3,6 +3,9 @@ import type { Card, Rank, Suit, Player } from '../../types/poker';
 import type { ShowdownRecord } from './types';
 import { pickRandomCards } from '../../utils/randomCard';
 import type { Pot, WinnerEntry } from '../../utils/sidePots';
+import type { ShowdownEvaluation } from '../../utils/evaluateShowdown';
+import { splitPot } from '../../utils/splitPot';
+import { buildPostflopOrder } from './useHandFlow';
 export type { WinnerEntry };
 
 const RANKS: Rank[] = ['A', 'K', 'Q', 'J', 'T', '9', '8', '7', '6', '5', '4', '3', '2'];
@@ -21,6 +24,11 @@ function cardDisp(card: Card | null) {
   if (!card) return null;
   const suit = SUITS.find((s) => s.value === card.suit);
   return { label: `${card.rank}${suit?.label ?? ''}`, color: suit?.color ?? 'var(--color-text)' };
+}
+
+/** 白地のカード表示用の色（黒スートは黒。ダークテーマの文字色だと白地で読めない） */
+function onWhiteColor(suit: Suit): string {
+  return suit === 'h' || suit === 'd' ? '#e53e3e' : '#111';
 }
 
 // ============================================================
@@ -121,7 +129,7 @@ export function ShowdownPlayerPanel({
                 {presetCards.map((card, i) => {
                   const disp = cardDisp(card);
                   return (
-                    <span key={i} className="showdown-preset__card" style={{ color: disp?.color }}>
+                    <span key={i} className="showdown-preset__card" style={{ color: onWhiteColor(card.suit) }}>
                       {disp?.label}
                     </span>
                   );
@@ -287,7 +295,10 @@ interface WinnerPanelProps {
   positionLabels: string[];
   currency: string;
   showdownRecords: ShowdownRecord[];
-  onConfirm: (winnerId: string) => void;
+  /** 手札とボードからの自動判定。あれば初期選択になる（無ければ手動選択） */
+  suggestion?: ShowdownEvaluation | null;
+  /** 勝者が複数ならチョップ */
+  onConfirm: (winnerIds: string[]) => void;
   /** 「1つ戻る」（フロー側の goBack） */
   onBack?: () => void;
 }
@@ -301,15 +312,51 @@ export function WinnerPanel({
   positionLabels,
   currency,
   showdownRecords,
+  suggestion,
   onConfirm,
   onBack,
 }: WinnerPanelProps) {
-  const [selected, setSelected] = useState<string | null>(null);
+  const [selected, setSelected] = useState<string[]>(suggestion?.winnerIds ?? []);
+  // チョップは「チョップ」ボタンで選ぶ。金色になる選択肢は常に1つ（プレイヤーか、チョップ）。
+  // チョップ中のプレイヤーは ✓ だけで示し、枠は光らせない（誤タップで勝者が複数になるのも防ぐ）
+  const [chop, setChop] = useState((suggestion?.winnerIds.length ?? 0) > 1);
+
+  const toggle = (id: string) => {
+    if (chop) {
+      setSelected((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+    } else {
+      setSelected([id]);
+    }
+  };
+  const toggleChop = () => {
+    if (chop) {
+      // チョップをやめる: 自動判定が単独勝者ならそれ、無ければ未選択に戻す
+      setSelected(suggestion?.winnerIds.length === 1 ? suggestion.winnerIds : []);
+    } else {
+      // チョップにする: 自動判定のチョップ相手、無ければ候補全員（3人以上なら ✓ で外せる）
+      setSelected(
+        suggestion && suggestion.winnerIds.length > 1 ? suggestion.winnerIds : candidateIds,
+      );
+    }
+    setChop((v) => !v);
+  };
 
   const multiPot = potCount > 1;
   const labelOf = (id: string) => positionLabels[players.findIndex((p) => p.id === id)] ?? '';
   const cardsOf = (id: string) =>
     showdownRecords.find((r) => r.playerId === id && r.action === 'show')?.cards;
+
+  // チョップ時の配分プレビュー（端数は postflop のアクション順の早い人へ）
+  const splitPreview =
+    selected.length > 1
+      ? splitPot(
+          pot.amount,
+          selected,
+          buildPostflopOrder(players.map((p) => p.id), new Set()),
+        )
+          .map((e) => `${labelOf(e.playerId)} ${currency}${e.amount.toLocaleString()}`)
+          .join(' / ')
+      : null;
 
   return (
     <div className="winner-panel">
@@ -320,6 +367,14 @@ export function WinnerPanel({
         POT: <span className="winner-panel__pot-amount">{currency}{pot.amount.toLocaleString()}</span>
       </div>
 
+      {suggestion && (
+        <div className="winner-panel__auto">
+          自動判定: {suggestion.winnerIds.map(labelOf).join(' / ')}
+          {suggestion.winnerIds.length > 1 ? '（チョップ）' : ''}
+          ・違う場合は選び直してください
+        </div>
+      )}
+
       <div className="winner-list">
         {candidateIds.map((id) => {
           const record = cardsOf(id);
@@ -327,10 +382,13 @@ export function WinnerPanel({
             <button
               key={id}
               type="button"
-              className={`winner-btn ${selected === id ? 'winner-btn--selected' : ''}`}
-              onClick={() => setSelected(id)}
+              className={`winner-btn ${
+                selected.includes(id) ? (chop ? 'winner-btn--chopped' : 'winner-btn--selected') : ''
+              }`}
+              onClick={() => toggle(id)}
             >
               <span className="winner-btn__pos">{labelOf(id)}</span>
+              {chop && selected.includes(id) && <span className="winner-btn__check">✓</span>}
               {record && (
                 <span className="winner-btn__cards">
                   {record.map((card, ci) => {
@@ -339,7 +397,7 @@ export function WinnerPanel({
                       <span
                         key={ci}
                         className="winner-btn__card"
-                        style={{ color: suit?.color }}
+                        style={{ color: onWhiteColor(card.suit) }}
                       >
                         {card.rank}{suit?.label}
                       </span>
@@ -347,10 +405,23 @@ export function WinnerPanel({
                   })}
                 </span>
               )}
+              {suggestion?.descriptions[id] && (
+                <span className="winner-btn__descr">{suggestion.descriptions[id]}</span>
+              )}
             </button>
           );
         })}
       </div>
+
+      <button
+        type="button"
+        className={`winner-chop-toggle ${chop ? 'winner-chop-toggle--on' : ''}`}
+        onClick={toggleChop}
+        aria-pressed={chop}
+      >
+        チョップ（引き分け）
+      </button>
+      {splitPreview && <div className="winner-panel__split">配分: {splitPreview}</div>}
 
       <div className="hand-end__actions">
         {onBack && (
@@ -361,8 +432,8 @@ export function WinnerPanel({
         <button
           type="button"
           className="btn-primary hand-end__confirm"
-          onClick={() => selected && onConfirm(selected)}
-          disabled={!selected}
+          onClick={() => selected.length > 0 && onConfirm(selected)}
+          disabled={selected.length === 0}
         >
           {hasNextPot ? '次のポットへ →' : '保存 →'}
         </button>

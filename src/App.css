@@ -2225,12 +2225,20 @@ input[type='radio'] {
     background 0.15s;
   text-align: left;
 }
-.winner-btn:hover {
-  border-color: var(--color-primary);
+/* タッチ端末ではタップ後にホバーが残るので、ホバーできる端末だけ・未選択のものだけに効かせる */
+@media (hover: hover) {
+  .winner-btn:not(.winner-btn--selected):hover {
+    border-color: var(--color-primary);
+  }
 }
 .winner-btn--selected {
   border-color: #fbbf24;
   background: rgba(251, 191, 36, 0.1);
+}
+
+.winner-btn__check {
+  color: var(--color-text-muted);
+  font-weight: 700;
 }
 
 .winner-btn__pos {
@@ -2261,6 +2269,33 @@ input[type='radio'] {
   min-width: 2rem;
   text-align: center;
   line-height: 1.4;
+}
+
+.winner-btn__descr {
+  margin-left: auto;
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+}
+
+.winner-panel__auto,
+.winner-panel__split {
+  text-align: center;
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+}
+
+.winner-chop-toggle {
+  padding: 0.6rem 1rem;
+  background: var(--color-surface2);
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-text);
+  font-weight: 600;
+  cursor: pointer;
+}
+.winner-chop-toggle--on {
+  border-color: #fbbf24;
+  background: rgba(251, 191, 36, 0.1);
 }
 
 .winner-confirm-btn {

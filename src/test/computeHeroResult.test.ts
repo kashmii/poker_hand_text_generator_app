@@ -104,6 +104,39 @@ describe('computeHeroResult', () => {
     expect(computeHeroResult(h)).toBe(300);
   });
 
+  it('HU: オールイン対オールインでチョップ → 収支は 0（獲得が拠出と同額）', () => {
+    const h = hand(
+      sessionHU('btn'),
+      [
+        { playerId: 'btn', type: 'allin', amount: 300 },
+        { playerId: 'bb', type: 'allin', amount: 300 },
+      ],
+      [
+        { playerId: 'bb', amount: 300, label: 'main pot' },
+        { playerId: 'btn', amount: 300, label: 'main pot' },
+      ],
+    );
+    expect(computeHeroResult(h)).toBe(0);
+  });
+
+  it('3人チョップで端数を受け取っても、獲得額の合計で収支が出る', () => {
+    // 3人が 100 ずつ入れた 300 のうち、SB と BTN が 150/150 でチョップ（BB は負け）
+    const h = hand(
+      session3('btn'),
+      [
+        { playerId: 'btn', type: 'allin', amount: 100 },
+        { playerId: 'sb', type: 'allin', amount: 100 },
+        { playerId: 'bb', type: 'allin', amount: 100 },
+      ],
+      [
+        { playerId: 'sb', amount: 150, label: 'main pot' },
+        { playerId: 'btn', amount: 150, label: 'main pot' },
+      ],
+    );
+    // 獲得150 − 拠出100 = +50
+    expect(computeHeroResult(h)).toBe(50);
+  });
+
   it('HU: オールイン対オールインで負け → 自分の拠出分だけ負ける（-300）', () => {
     const h = hand(
       sessionHU('btn'),

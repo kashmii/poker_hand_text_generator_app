@@ -81,7 +81,7 @@ describe('useHandFlow: サイドポットのカスケード解決（要求17）'
     expect([...result.current.currentPotCandidates].sort()).toEqual(['bb', 'sb']);
 
     // BB をサイドポット勝者に
-    act(() => { result.current.confirmPotWinner('bb'); });
+    act(() => { result.current.confirmPotWinner(['bb']); });
 
     // 次はメインポット。まだ見せていない BTN(ショート)のショーダウンへ
     expect(result.current.state.phase).toBe('showdown');
@@ -95,7 +95,7 @@ describe('useHandFlow: サイドポットのカスケード解決（要求17）'
     expect([...result.current.currentPotCandidates].sort()).toEqual(['bb', 'btn']);
 
     // BTN(ショート)がメインを獲得
-    act(() => { result.current.confirmPotWinner('btn'); });
+    act(() => { result.current.confirmPotWinner(['btn']); });
 
     expect(result.current.state.phase).toBe('done');
     expect(result.current.state.potWinners).toEqual([
@@ -111,7 +111,7 @@ describe('useHandFlow: サイドポットのカスケード解決（要求17）'
     showCurrent(result);
     expect(result.current.state.phase).toBe('winner'); // side pot 選択中
 
-    act(() => { result.current.confirmPotWinner('bb'); });
+    act(() => { result.current.confirmPotWinner(['bb']); });
     expect(result.current.state.phase).toBe('showdown'); // main用 BTN ショーへ
 
     act(() => { result.current.goBack(); });

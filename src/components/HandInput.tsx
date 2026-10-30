@@ -66,6 +66,7 @@ export default function HandInput({ session, handNumber, onSave, onCancel, onUpd
     players,
     currentPot,
     currentPotCandidates,
+    currentPotSuggestion,
   } = useHandFlow(session);
 
   // ホールカード入力用ローカル state
@@ -560,6 +561,7 @@ export default function HandInput({ session, handNumber, onSave, onCancel, onUpd
             />
           ) : currentPot ? (
             <WinnerPanel
+              key={`${currentPot.label}-${state.potResolveIdx}`}
               pot={currentPot}
               candidateIds={currentPotCandidates}
               potCount={state.pots.length}
@@ -568,7 +570,8 @@ export default function HandInput({ session, handNumber, onSave, onCancel, onUpd
               positionLabels={posLabels}
               currency={session.currency}
               showdownRecords={state.showdownRecords}
-              onConfirm={(winnerId) => confirmPotWinner(winnerId)}
+              suggestion={currentPotSuggestion}
+              onConfirm={confirmPotWinner}
               onBack={canGoBack ? goBack : undefined}
             />
           ) : null

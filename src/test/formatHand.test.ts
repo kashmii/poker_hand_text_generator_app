@@ -364,6 +364,37 @@ describe('generateHandText', () => {
       expect(text).toContain('BB wins main pot $90');
       expect(text).toContain('BTN wins side pot $140');
     });
+
+    it('単一ポットのチョップは "splits the pot" を1人1行で出す（端数は実額）', () => {
+      const hand: HandData = {
+        ...handPreflopOnly,
+        pot: 101,
+        winners: [
+          { playerId: 'sb', amount: 51, label: 'main pot' },
+          { playerId: 'btn', amount: 50, label: 'main pot' },
+        ],
+      };
+      const text = generateHandText(hand, session3way);
+      expect(text).toContain('SB splits the pot $51');
+      expect(text).toContain('BTN splits the pot $50');
+      expect(text).not.toContain('wins');
+    });
+
+    it('サイドポットがあるときのチョップはポット名を明記する', () => {
+      const hand: HandData = {
+        ...handPreflopOnly,
+        pot: 230,
+        winners: [
+          { playerId: 'sb', amount: 45, label: 'main pot' },
+          { playerId: 'btn', amount: 45, label: 'main pot' },
+          { playerId: 'bb', amount: 140, label: 'side pot' },
+        ],
+      };
+      const text = generateHandText(hand, session3way);
+      expect(text).toContain('SB splits main pot $45');
+      expect(text).toContain('BTN splits main pot $45');
+      expect(text).toContain('BB wins side pot $140');
+    });
   });
 
 });

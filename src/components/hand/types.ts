@@ -72,10 +72,10 @@ export interface HandFlowState {
   pots: Pot[];
   // 現在解決中のポットのインデックス（pots 配列内）。上位(side)から下位(main)へ進む。未開始/終了は -1
   potResolveIdx: number;
-  // 上位ポットの勝者（下位ポットへ持ち越す）
-  carriedWinnerId: string | null;
+  // 上位ポットの勝者（下位ポットへ持ち越す。チョップなら複数）
+  carriedWinnerIds: string[];
   // 上位ポットで敗退し、下位ポットの候補から除外されるプレイヤー
   eliminatedIds: Set<string>;
-  // 確定したポット勝者（カスケード中は top→main 順で積み、保存時に main→side へ並べ替える）
+  // 確定したポット勝者（常に main→side 順。チョップは同一ポットのエントリが複数並ぶ）
   potWinners: WinnerEntry[];
 }

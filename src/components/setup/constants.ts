@@ -42,3 +42,20 @@ export const POSITION_LABELS_BY_COUNT: Record<number, string[]> = {
   8: ['BTN', 'SB', 'BB', 'UTG', 'UTG+1', 'UTG+2', 'HJ', 'CO'],
   9: ['BTN', 'SB', 'BB', 'UTG', 'UTG+1', 'UTG+2', 'MP', 'HJ', 'CO'],
 };
+
+// 通貨「なし（アミューズメントなど）」を選んだときの初期ブラインド。アミューズメントは 2/5・BBアンティありが定番
+const NO_CURRENCY_DEFAULT_BLIND = { sb: 2, bb: 5 };
+
+// 通貨を選び直したときに初期選択するプリセットのインデックス
+export function getDefaultPresetIdx(currency: string): number {
+  if (currency !== '') return 0;
+  const idx = BLIND_PRESETS[''].findIndex(
+    (p) => p.sb === NO_CURRENCY_DEFAULT_BLIND.sb && p.bb === NO_CURRENCY_DEFAULT_BLIND.bb
+  );
+  return Math.max(idx, 0);
+}
+
+// 通貨を選び直したときに BBアンティを自動でオンにするか
+export function isAnteOnByDefault(currency: string): boolean {
+  return currency === '';
+}

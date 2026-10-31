@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
 import type { SessionConfig, HandData, Action, Card } from '../types/poker';
-import { POSITION_LABELS_BY_COUNT } from './setup/constants';
+import { positionLabels } from '../utils/positions';
 
 import { useHandFlow } from './hand/useHandFlow';
+import { muckedIdsOf } from './hand/handFlowReducer';
 import PokerTable from './hand/PokerTable';
 import ActionPanel from './hand/ActionPanel';
 import BoardInput from './hand/BoardInput';
@@ -10,7 +11,8 @@ import CardPickerPanel from './hand/CardPickerPanel';
 import { ShowdownPlayerPanel, WinnerPanel, HandEndPanel } from './hand/ShowdownPanel';
 import type { WinnerEntry } from './hand/ShowdownPanel';
 import type { RecordedAction } from './hand/types';
-import { pickRandomCards } from '../utils/randomCard';
+import { fillRandomCards } from '../utils/randomCard';
+import { cardKey, filledCards } from '../utils/card';
 import { reachedBoards } from '../utils/reachedBoards';
 import { uuid } from '../utils/uuid';
 import { computeHeroResult } from '../utils/computeHeroResult';
@@ -105,12 +107,14 @@ export default function HandInput({ session, handNumber, onSave, onCancel, onUpd
     commitHoleCards(null);
   };
 
-  /** カードを "rank+suit" の文字列に変換 */
-  const cardKey = (c: Card) => `${c.rank}${c.suit}`;
+  /** ボードに入力済みのカード（先行入力メモで入れた未到達ストリートの分も含む） */
+  const boardCards = BOARD_STREETS.flatMap((st) => filledCards(state.boards[st]));
+  /** ホールカード入力フェーズの使用済みセット（先行入力メモのボードカードも含む） */
+  const holeUsedSet = new Set<string>(boardCards.map(cardKey));
 
   /** ヒーローのホールカード（ホールカード入力中は入力済みの分） */
   const buildHeroUsedCards = (): Card[] =>
-    state.holeCards ? [...state.holeCards] : holeCards.filter((c): c is Card => c !== null);
+    state.holeCards ? [...state.holeCards] : filledCards(holeCards);
 
   /**
    * ボード入力（通常フェーズ・先行入力メモ）で使用済みとみなすカード一覧を計算する。
@@ -118,11 +122,9 @@ export default function HandInput({ session, handNumber, onSave, onCancel, onUpd
    * - 他ストリートのボードカード（先行入力メモで入れた未到達ストリートの分も含む）
    */
   const buildBoardUsedCards = (currentStreet: BoardStreet): Card[] => {
-    const used: Card[] = buildHeroUsedCards();
-    BOARD_STREETS.filter((st) => st !== currentStreet).forEach((st) => {
-      state.boards[st].forEach((c) => { if (c) used.push(c); });
-    });
-    return used;
+    const otherBoards = BOARD_STREETS.filter((st) => st !== currentStreet)
+      .flatMap((st) => filledCards(state.boards[st]));
+    return [...buildHeroUsedCards(), ...otherBoards];
   };
 
   /**
@@ -131,33 +133,19 @@ export default function HandInput({ session, handNumber, onSave, onCancel, onUpd
    * - 全ボードカード
    * - これまでのショーダウン記録（show済みのカード）
    */
-  const buildShowdownUsedCards = (): Card[] => {
-    const used: Card[] = [];
-    if (state.holeCards) used.push(...state.holeCards);
-    (['flop', 'turn', 'river'] as const).forEach((st) => {
-      state.boards[st].forEach((c) => { if (c) used.push(c); });
-    });
-    state.showdownRecords.forEach((r) => {
-      if (r.cards) used.push(...r.cards);
-    });
-    return used;
-  };
+  const buildShowdownUsedCards = (): Card[] => [
+    ...(state.holeCards ?? []),
+    ...boardCards,
+    ...state.showdownRecords.flatMap((r) => r.cards ?? []),
+  ];
 
-  /** ホールカード入力フェーズの使用済みセット（先行入力メモのボードカードも含む） */
-  const holeUsedSet = new Set<string>([
-    ...BOARD_STREETS.flatMap((st) => state.boards[st].filter((c): c is Card => c !== null).map(cardKey)),
-  ]);
-
-  const posLabels = POSITION_LABELS_BY_COUNT[players.length] ?? [];
+  const posLabels = positionLabels(players.length);
   const actorIdx = players.findIndex((p) => p.id === actorId);
   const actorPositionLabel = actorIdx >= 0 ? posLabels[actorIdx] : '';
 
   const handleSave = (winnerEntriesArg?: WinnerEntry[]) => {
     const toActions = (arr: RecordedAction[]): Action[] =>
       arr.map((a) => ({ playerId: a.playerId, type: a.type, amount: a.amount }));
-
-    const filterBoard = (cards: (Card | null)[]) =>
-      cards.filter((c): c is Card => c !== null);
 
     // 先行入力メモで入れた未到達ストリートのボードは保存しない
     const boards = reachedBoards(state.boards, state.currentStreet);
@@ -176,22 +164,22 @@ export default function HandInput({ session, handNumber, onSave, onCancel, onUpd
       dealerPosition: 0,
       streets: {
         preflop: { actions: toActions(state.streets.preflop) },
-        ...(state.streets.flop.length > 0 || filterBoard(boards.flop).length > 0 ? {
+        ...(state.streets.flop.length > 0 || filledCards(boards.flop).length > 0 ? {
           flop: {
             actions: toActions(state.streets.flop),
-            board: filterBoard(boards.flop),
+            board: filledCards(boards.flop),
           },
         } : {}),
-        ...(state.streets.turn.length > 0 || filterBoard(boards.turn).length > 0 ? {
+        ...(state.streets.turn.length > 0 || filledCards(boards.turn).length > 0 ? {
           turn: {
             actions: toActions(state.streets.turn),
-            board: filterBoard(boards.turn),
+            board: filledCards(boards.turn),
           },
         } : {}),
-        ...(state.streets.river.length > 0 || filterBoard(boards.river).length > 0 ? {
+        ...(state.streets.river.length > 0 || filledCards(boards.river).length > 0 ? {
           river: {
             actions: toActions(state.streets.river),
-            board: filterBoard(boards.river),
+            board: filledCards(boards.river),
           },
         } : {}),
       },
@@ -222,9 +210,7 @@ export default function HandInput({ session, handNumber, onSave, onCancel, onUpd
   const boardStreet = state.currentStreet as 'flop' | 'turn' | 'river';
   const holeAllFilled = holeCards[0] !== null && holeCards[1] !== null;
 
-  const boardFilledCount = BOARD_STREETS.reduce(
-    (n, st) => n + state.boards[st].filter((c) => c !== null).length, 0,
-  );
+  const boardFilledCount = boardCards.length;
   const memoCards = MEMO_SLOTS.map(([st, i]) => state.boards[st][i]);
   const canOpenMemo = state.phase !== 'done';
 
@@ -238,11 +224,7 @@ export default function HandInput({ session, handNumber, onSave, onCancel, onUpd
   const showdownTotal = state.showdownRecords.length + state.showdownQueue.length;
 
   // ウィナー選択: foldしておらず、muckもしていないプレイヤーのみ
-  const muckedPlayerIds = new Set(
-    state.showdownRecords
-      .filter((r) => r.action === 'muck')
-      .map((r) => r.playerId),
-  );
+  const muckedPlayerIds = muckedIdsOf(state.showdownRecords);
   const activePlayers = players.filter(
     (p) => !state.foldedIds.has(p.id) && !muckedPlayerIds.has(p.id),
   );
@@ -256,13 +238,7 @@ export default function HandInput({ session, handNumber, onSave, onCancel, onUpd
     <button
       type="button"
       className="rndm-btn"
-      onClick={() => {
-        const filled = holeCards.filter((c): c is Card => c !== null);
-        const need = holeCards.filter((c) => c === null).length;
-        const picked = pickRandomCards(filled, need);
-        let pi = 0;
-        updateHoleSlots(holeCards.map((c) => c ?? (pi < picked.length ? picked[pi++] : EMPTY_PART)));
-      }}
+      onClick={() => updateHoleSlots(fillRandomCards(holeCards, boardCards).map((c) => c ?? EMPTY_PART))}
       disabled={holeAllFilled}
     >
       rndm

@@ -1,25 +1,15 @@
 import { useState } from 'react';
 import type { Card, Suit, Player } from '../../types/poker';
 import type { ShowdownRecord } from './types';
-import { pickRandomCards } from '../../utils/randomCard';
+import { fillRandomCards } from '../../utils/randomCard';
+import { cardKey, cardLabel } from '../../utils/card';
 import type { Pot, WinnerEntry } from '../../utils/sidePots';
 import type { ShowdownEvaluation } from '../../utils/evaluateShowdown';
 import { splitPot } from '../../utils/splitPot';
 import { buildPostflopOrder } from './handFlowReducer';
 import { EMPTY_PART, isCompleteCard, type PartialCard } from '../../utils/cardPick';
-import { SUITS } from './suits';
 import CardPickerPanel from './CardPickerPanel';
 export type { WinnerEntry };
-
-function cardKey(c: Card) {
-  return `${c.rank}${c.suit}`;
-}
-
-function cardDisp(card: Card | null) {
-  if (!card) return null;
-  const suit = SUITS.find((s) => s.value === card.suit);
-  return { label: `${card.rank}${suit?.label ?? ''}`, color: suit?.color ?? 'var(--color-text)' };
-}
 
 /** 白地のカード表示用の色（黒スートは黒。ダークテーマの文字色だと白地で読めない） */
 function onWhiteColor(suit: Suit): string {
@@ -62,11 +52,7 @@ export function ShowdownPlayerPanel({
 
   // DEV only: 未入力スロットをランダムに埋める
   const handleRandomFill = () => {
-    const filled = cards.filter((c): c is Card => c !== null);
-    const need = cards.filter((c) => c === null).length;
-    const picked = pickRandomCards([...usedCards, ...filled], need);
-    let pi = 0;
-    setSlots(cards.map((c) => c ?? (pi < picked.length ? picked[pi++] : EMPTY_PART)));
+    setSlots(fillRandomCards(cards, usedCards).map((c) => c ?? EMPTY_PART));
   };
 
   const handleShow = () => {
@@ -93,14 +79,11 @@ export function ShowdownPlayerPanel({
             /* hero: 事前入力済みのカードをプレビュー表示してワンタップでSHOW */
             <div className="showdown-preset">
               <div className="showdown-preset__cards">
-                {presetCards.map((card, i) => {
-                  const disp = cardDisp(card);
-                  return (
-                    <span key={i} className="showdown-preset__card" style={{ color: onWhiteColor(card.suit) }}>
-                      {disp?.label}
-                    </span>
-                  );
-                })}
+                {presetCards.map((card, i) => (
+                  <span key={i} className="showdown-preset__card" style={{ color: onWhiteColor(card.suit) }}>
+                    {cardLabel(card)}
+                  </span>
+                ))}
               </div>
               <div className="showdown-choose">
                 <button
@@ -299,18 +282,15 @@ export function WinnerPanel({
               {chop && selected.includes(id) && <span className="winner-btn__check">✓</span>}
               {record && (
                 <span className="winner-btn__cards">
-                  {record.map((card, ci) => {
-                    const suit = SUITS.find((s) => s.value === card.suit);
-                    return (
-                      <span
-                        key={ci}
-                        className="winner-btn__card"
-                        style={{ color: onWhiteColor(card.suit) }}
-                      >
-                        {card.rank}{suit?.label}
-                      </span>
-                    );
-                  })}
+                  {record.map((card, ci) => (
+                    <span
+                      key={ci}
+                      className="winner-btn__card"
+                      style={{ color: onWhiteColor(card.suit) }}
+                    >
+                      {cardLabel(card)}
+                    </span>
+                  ))}
                 </span>
               )}
               {suggestion?.descriptions[id] && (

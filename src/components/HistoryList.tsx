@@ -1,7 +1,6 @@
 import type { Card } from '../types/poker';
 import type { HandSummary } from '../api/hands';
-
-const SUIT_SYMBOLS: Record<Card['suit'], string> = { h: '♥', d: '♦', c: '♣', s: '♠' };
+import { cardLabel } from '../utils/card';
 
 /** カードを色付きチップで並べて表示する（♥♦は赤）。 */
 export function Cards({ cards }: { cards?: Card[] | null }) {
@@ -10,8 +9,7 @@ export function Cards({ cards }: { cards?: Card[] | null }) {
     <span className="pcards">
       {cards.map((c, i) => (
         <span key={i} className={`pcard pcard--${c.suit}`}>
-          {c.rank}
-          {SUIT_SYMBOLS[c.suit]}
+          {cardLabel(c)}
         </span>
       ))}
     </span>

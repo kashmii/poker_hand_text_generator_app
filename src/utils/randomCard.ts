@@ -1,11 +1,5 @@
-import type { Card, Rank, Suit } from '../types/poker';
-
-const ALL_RANKS: Rank[] = ['A', 'K', 'Q', 'J', 'T', '9', '8', '7', '6', '5', '4', '3', '2'];
-const ALL_SUITS: Suit[] = ['h', 'd', 'c', 's'];
-
-function cardKey(c: Card) {
-  return `${c.rank}${c.suit}`;
-}
+import type { Card } from '../types/poker';
+import { RANKS, SUIT_VALUES, cardKey, filledCards } from './card';
 
 /**
  * 使用済みカードを除いたデッキからランダムに n 枚選んで返す。
@@ -14,8 +8,8 @@ function cardKey(c: Card) {
 export function pickRandomCards(usedCards: Card[], count: number): Card[] {
   const usedSet = new Set(usedCards.map(cardKey));
   const available: Card[] = [];
-  for (const rank of ALL_RANKS) {
-    for (const suit of ALL_SUITS) {
+  for (const rank of RANKS) {
+    for (const suit of SUIT_VALUES) {
       const card: Card = { rank, suit };
       if (!usedSet.has(cardKey(card))) {
         available.push(card);
@@ -28,4 +22,15 @@ export function pickRandomCards(usedCards: Card[], count: number): Card[] {
     [available[i], available[j]] = [available[j], available[i]];
   }
   return available.slice(0, count);
+}
+
+/**
+ * 空き枠（null）だけをランダムなカードで埋めた配列を返す（DEV のランダム入力用）。
+ * usedCards と入力済みのカードは選ばない。デッキが足りなければ残りは null のまま。
+ */
+export function fillRandomCards(cards: (Card | null)[], usedCards: Card[]): (Card | null)[] {
+  const need = cards.filter((c) => c === null).length;
+  const picked = pickRandomCards([...usedCards, ...filledCards(cards)], need);
+  let pi = 0;
+  return cards.map((c) => c ?? picked[pi++] ?? null);
 }

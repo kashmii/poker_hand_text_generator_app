@@ -6,38 +6,18 @@ import type {
   Player,
   ShowdownEntry,
 } from '../types/poker';
+import { cardLabel } from './card';
+import { positionLabels } from './positions';
 
 // ========== カード表示 ==========
-const SUIT_SYMBOLS: Record<string, string> = {
-  h: '♥',
-  d: '♦',
-  c: '♣',
-  s: '♠',
-};
-
-function formatCard(card: Card): string {
-  return `${card.rank}${SUIT_SYMBOLS[card.suit] ?? card.suit}`;
-}
-
 function formatCardsSpaced(cards: Card[]): string {
-  return cards.map(formatCard).join(' ');
+  return cards.map(cardLabel).join(' ');
 }
 
 // ========== ポジション名 ==========
-const POSITION_LABELS_BY_COUNT: Record<number, string[]> = {
-  2: ['SB/BTN', 'BB'],
-  3: ['BTN', 'SB', 'BB'],
-  4: ['BTN', 'SB', 'BB', 'UTG'],
-  5: ['BTN', 'SB', 'BB', 'UTG', 'CO'],
-  6: ['BTN', 'SB', 'BB', 'UTG', 'HJ', 'CO'],
-  7: ['BTN', 'SB', 'BB', 'UTG', 'UTG+1', 'HJ', 'CO'],
-  8: ['BTN', 'SB', 'BB', 'UTG', 'UTG+1', 'UTG+2', 'HJ', 'CO'],
-  9: ['BTN', 'SB', 'BB', 'UTG', 'UTG+1', 'UTG+2', 'MP', 'HJ', 'CO'],
-};
-
 function getPositionLabel(playerIdx: number, totalPlayers: number): string {
   return (
-    POSITION_LABELS_BY_COUNT[totalPlayers]?.[playerIdx] ??
+    positionLabels(totalPlayers)[playerIdx] ??
     `Seat${playerIdx + 1}`
   );
 }

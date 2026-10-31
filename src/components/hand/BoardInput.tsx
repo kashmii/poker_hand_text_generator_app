@@ -1,7 +1,8 @@
 import { useState, type ReactNode } from 'react';
 import type { Card } from '../../types/poker';
 import type { Street } from './types';
-import { pickRandomCards } from '../../utils/randomCard';
+import { fillRandomCards } from '../../utils/randomCard';
+import { cardKey } from '../../utils/card';
 import { EMPTY_PART, isCompleteCard, mergeSlots, type PartialCard } from '../../utils/cardPick';
 import CardPickerPanel from './CardPickerPanel';
 
@@ -27,11 +28,6 @@ interface Props {
   onBack?: () => void;
   /** 全スロット入力済みのときに出す確定ボタンの文言 */
   confirmLabel?: string;
-}
-
-/** card が usedSet に含まれるか判定 */
-function cardKey(card: Card) {
-  return `${card.rank}${card.suit}`;
 }
 
 export default function BoardInput({
@@ -75,18 +71,13 @@ export default function BoardInput({
 
   // DEV only: 未入力スロットをランダムに埋めて自動確定
   const handleRandomFill = () => {
-    const alreadyFilled = cards.filter((c): c is Card => c !== null);
-    const need = cards.filter((c) => c === null).length;
-    const picked = pickRandomCards([...usedCards, ...alreadyFilled], need);
-    let pickIdx = 0;
-    cards.forEach((c, i) => {
-      if (c === null && pickIdx < picked.length) {
-        onCardChange(i, picked[pickIdx++]);
-      }
+    const filled = fillRandomCards(cards, usedCards);
+    filled.forEach((c, i) => {
+      if (cards[i] === null && c !== null) onCardChange(i, c);
     });
     setPartials(cards.map(() => EMPTY_PART));
-    // 全スロットが埋まる（空きが全部picked）なら自動確定
-    if (need === picked.length) {
+    // 全スロットが埋まったら自動確定
+    if (filled.every((c) => c !== null)) {
       onConfirm();
     }
   };

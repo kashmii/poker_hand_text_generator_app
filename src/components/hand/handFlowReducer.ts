@@ -5,6 +5,7 @@ import type { Pot, WinnerEntry } from '../../utils/sidePots';
 import { splitPot } from '../../utils/splitPot';
 import { evaluateShowdown } from '../../utils/evaluateShowdown';
 import type { ShowdownEvaluation } from '../../utils/evaluateShowdown';
+import { filledCards } from '../../utils/card';
 
 /**
  * ハンド1件の進行ロジック（純粋関数）。useHandFlow はここの reducer に処理を任せる。
@@ -194,7 +195,7 @@ function flatBoard(boards: HandFlowState['boards']): (Card | null)[] {
 }
 
 /** ショーダウンで muck したプレイヤー */
-function muckedIdsOf(records: ShowdownRecord[]): Set<string> {
+export function muckedIdsOf(records: ShowdownRecord[]): Set<string> {
   return new Set(records.filter((r) => r.action === 'muck').map((r) => r.playerId));
 }
 
@@ -231,7 +232,7 @@ function evaluatePot(
   candidateIds: string[],
   showdownRecords: ShowdownRecord[],
 ): ShowdownEvaluation | null {
-  const boardCards = board.filter((c): c is Card => c !== null);
+  const boardCards = filledCards(board);
   const hands: { playerId: string; cards: [Card, Card] }[] = [];
   for (const id of candidateIds) {
     const cards = showdownRecords.find((r) => r.playerId === id && r.action === 'show')?.cards;

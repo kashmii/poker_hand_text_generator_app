@@ -58,6 +58,8 @@ export function ShowdownPlayerPanel({
 
   const resetSlots = () => setSlots([EMPTY_PART, EMPTY_PART]);
 
+  const handleRemove = (idx: number) => handleSlotChange(idx, EMPTY_PART);
+
   // DEV only: 未入力スロットをランダムに埋める
   const handleRandomFill = () => {
     const filled = cards.filter((c): c is Card => c !== null);
@@ -151,12 +153,13 @@ export function ShowdownPlayerPanel({
               </button>
             </div>
           )}
-          {/* カード枠＋ランク・スーツ選択。やり直しはクリアのみ */}
+          {/* カード枠＋ランク・スーツ選択 */}
           <CardPickerPanel
             slots={slots}
             usedSet={usedSet}
             onSlotChange={handleSlotChange}
             onClear={resetSlots}
+            onRemove={handleRemove}
           />
 
           <div className="showdown-card-actions">

@@ -93,7 +93,13 @@ export default function HandInput({ session, handNumber, onSave, onCancel, onUpd
   const handleHoleSlotChange = (idx: number, slot: PartialCard) =>
     updateHoleSlots(holeSlots.map((p, i) => (i === idx ? slot : p)));
 
-  // 2枚とも空にして入力し直す（手札のやり直しはこれだけ）
+  // 1枚だけ空にする。ペアが崩れるのでエンジン側の手札もクリア
+  const handleHoleRemove = (idx: number) => {
+    setHoleSlots(holeSlots.map((p, i) => (i === idx ? EMPTY_PART : p)));
+    commitHoleCards(null);
+  };
+
+  // 2枚とも空にして入力し直す
   const handleHoleClearAll = () => {
     setHoleSlots([EMPTY_PART, EMPTY_PART]);
     commitHoleCards(null);
@@ -263,13 +269,14 @@ export default function HandInput({ session, handNumber, onSave, onCancel, onUpd
     </button>
   ) : null;
 
-  // 手札入力の枠＋ランク/スーツピッカー（初期入力画面・後入力パネルで共用）。やり直しはクリアのみ
+  // 手札入力の枠＋ランク/スーツピッカー（初期入力画面・後入力パネルで共用）
   const holePickerBody = (
     <CardPickerPanel
       slots={holeSlots}
       usedSet={holeUsedSet}
       onSlotChange={handleHoleSlotChange}
       onClear={handleHoleClearAll}
+      onRemove={handleHoleRemove}
     />
   );
 

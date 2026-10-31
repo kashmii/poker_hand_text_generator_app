@@ -13,7 +13,7 @@ interface Props {
   onSlotChange: (idx: number, slot: PartialCard) => void;
   /** 全枠を空にする */
   onClear: () => void;
-  /** 指定時のみ各枠に × を出し、その枠だけ空にできる（フロップ・ボードメモ用） */
+  /** 指定時のみ各枠に × を出し、その枠だけ空にできる（1枚だけのターン・リバーでは渡さない） */
   onRemove?: (idx: number) => void;
   /** 区切りの余白を左に入れる枠のインデックス（ボードメモでフロップ|ターン|リバーを分ける） */
   groupStarts?: number[];

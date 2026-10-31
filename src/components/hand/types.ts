@@ -54,6 +54,10 @@ export interface HandFlowState {
    * - ポストフロップ開始（checkラウンド）: null（lappedEnd で判定）
    */
   closingPlayerId: string | null;
+  // プリフロップのアクション順（ストラドルで組み替わる）。goBack で戻せるよう state に持つ
+  preflopOrder: string[];
+  // 直近のストラドル額（なければ0）
+  currentStraddle: number;
   // ポット累積
   pot: number;
   // フェーズ

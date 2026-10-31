@@ -3,6 +3,7 @@ import type {
   SessionConfig,
   Action,
   Card,
+  Player,
   ShowdownEntry,
 } from '../types/poker';
 
@@ -170,8 +171,7 @@ export function generateHandText(
   // プリフロップ開始時は全員参加
   lines.push(`Preflop (${totalPlayers} players, Pot size: 0)`);
   // SB/BBのポスト
-  const sbPlayer = players[1] ?? players[0];
-  const bbPlayer = players[2] ?? players[1];
+  const { sbPlayer, bbPlayer } = blindPlayers(players);
   // BBアンティはBBのみが払う（Big Blind Ante）
   if (ante > 0) {
     lines.push(
@@ -189,7 +189,7 @@ export function generateHandText(
 
   // --- フロップ ---
   if (hand.streets.flop) {
-    const preflopPot = computeStreetPot(hand, 'preflop', smallBlind, bigBlind, ante);
+    const preflopPot = computeStreetPot(hand, 'preflop', session);
     const flopFolded = foldedBeforeStreet('flop');
     const flopPlayers = totalPlayers - flopFolded.size;
     const boardStr = hand.streets.flop.board
@@ -202,7 +202,7 @@ export function generateHandText(
 
   // --- ターン ---
   if (hand.streets.turn) {
-    const turnPot = computeStreetPot(hand, 'flop', smallBlind, bigBlind, ante);
+    const turnPot = computeStreetPot(hand, 'flop', session);
     const turnFolded = foldedBeforeStreet('turn');
     const turnPlayers = totalPlayers - turnFolded.size;
     const boardStr = hand.streets.turn.board
@@ -215,7 +215,7 @@ export function generateHandText(
 
   // --- リバー ---
   if (hand.streets.river) {
-    const riverPot = computeStreetPot(hand, 'turn', smallBlind, bigBlind, ante);
+    const riverPot = computeStreetPot(hand, 'turn', session);
     const riverFolded = foldedBeforeStreet('river');
     const riverPlayers = totalPlayers - riverFolded.size;
     const boardStr = hand.streets.river.board
@@ -266,24 +266,30 @@ export function generateHandText(
 }
 
 /**
- * 指定ストリート開始時点のポットサイズを計算する。
- * SB/BB/anteの強制投資 + 各ストリートのベット合計を積算。
+ * SB・BB を払うプレイヤー。players は [BTN, SB, BB, ...] の順。
+ * 2人（ヘッズアップ）は [SB/BTN, BB] なので BTN が SB を払う（useHandFlow と同じ扱い）。
+ */
+function blindPlayers(players: Player[]): { sbPlayer: Player; bbPlayer: Player } {
+  if (players.length === 2) return { sbPlayer: players[0], bbPlayer: players[1] };
+  return { sbPlayer: players[1] ?? players[0], bbPlayer: players[2] ?? players[1] };
+}
+
+/**
+ * 指定ストリート終了時点（＝次ストリート開始時点）のポットサイズを計算する。
+ * SB/BB/anteの強制投資 + 各ストリートの投入額を積算。
+ * アクションの amount は call だけが「追加額」、bet/raise/allin/straddle は「そのストリートでの合計額」。
  */
 function computeStreetPot(
   hand: HandData,
   upToStreet: 'preflop' | 'flop' | 'turn' | 'river',
-  smallBlind: number,
-  bigBlind: number,
-  ante: number,
+  session: SessionConfig,
 ): number {
+  const { players, smallBlind, bigBlind, ante } = session;
   let pot = smallBlind + bigBlind + ante;
 
   // straddleはpreflopのアクションに含まれているので自動的に加算される
   const streetOrder = ['preflop', 'flop', 'turn', 'river'] as const;
   const upToIdx = streetOrder.indexOf(upToStreet);
-
-  // upToStreet 自身を含むストリートまでの投資を集計
-  const contributions: Record<string, number> = {};
 
   for (let si = 0; si <= upToIdx; si++) {
     const street = streetOrder[si];
@@ -292,28 +298,22 @@ function computeStreetPot(
         ? hand.streets.preflop.actions
         : (hand.streets[street]?.actions ?? []);
 
-    // ストリートごとにcontributionsをリセット（ポストフロップ）
-    if (si > 0) {
-      Object.keys(contributions).forEach((k) => {
-        contributions[k] = 0;
-      });
+    // ストリート内の各プレイヤーの投入額。プリフロップは SB/BB のポスト分から始まる
+    // （アンティは別枠なので含めない。BB の 3bet などで二重に数えないため）
+    const contributions: Record<string, number> = {};
+    if (street === 'preflop' && players.length >= 2) {
+      const { sbPlayer, bbPlayer } = blindPlayers(players);
+      contributions[sbPlayer.id] = smallBlind;
+      contributions[bbPlayer.id] = bigBlind;
     }
 
     for (const a of actions) {
       if (a.type === 'fold' || a.type === 'check') continue;
-      if (a.type === 'call') {
-        const added = a.amount ?? 0;
+      const prev = contributions[a.playerId] ?? 0;
+      const total = a.type === 'call' ? prev + (a.amount ?? 0) : (a.amount ?? 0);
+      const added = total - prev;
+      if (added > 0) {
         pot += added;
-      } else if (
-        a.type === 'bet' ||
-        a.type === 'raise' ||
-        a.type === 'allin' ||
-        a.type === 'straddle'
-      ) {
-        const total = a.amount ?? 0;
-        const prev = contributions[a.playerId] ?? 0;
-        const added = total - prev;
-        if (added > 0) pot += added;
         contributions[a.playerId] = total;
       }
     }

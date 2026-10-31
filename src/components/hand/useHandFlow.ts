@@ -318,13 +318,6 @@ export function useHandFlow(
   const { players, smallBlind, bigBlind, ante } = session;
   const playerIds = players.map((p) => p.id);
 
-  // ストラドル額を動的に管理（アクション中にstraddleが決まる）
-  const [currentStraddle, setCurrentStraddle] = useState<number>(0);
-  // preflopOrderも動的に管理（straddle確定後に再構築）
-  const [preflopOrder, setPreflopOrder] = useState<string[]>(() =>
-    buildPreflopOrder(playerIds, 0),
-  );
-
   // SB/BB の強制投資を初期 contributions に反映
   const initContributions = (): Record<string, number> => {
     const c: Record<string, number> = {};
@@ -353,6 +346,7 @@ export function useHandFlow(
     return c;
   };
 
+  const initialPreflopOrder = buildPreflopOrder(playerIds, 0);
   const [state, setState] = useState<HandFlowState>({
     currentStreet: 'preflop',
     streets: emptyStreets(),
@@ -378,7 +372,9 @@ export function useHandFlow(
     eliminatedIds: new Set(),
     potWinners: [],
     // プリフロップ開始時: BBが必ず最後にアクションする締め切り人
-    closingPlayerId: buildPreflopOrder(playerIds, 0)[buildPreflopOrder(playerIds, 0).length - 1] ?? null,
+    closingPlayerId: initialPreflopOrder[initialPreflopOrder.length - 1] ?? null,
+    preflopOrder: initialPreflopOrder,
+    currentStraddle: 0,
   });
 
   // 履歴スタック（「戻る」用）
@@ -389,9 +385,9 @@ export function useHandFlow(
    * currentActorIdx はこのリスト上のインデックスとして管理する。
    */
   const activeOrder = useCallback(
-    (s: HandFlowState, order: string[]): string[] => {
+    (s: HandFlowState): string[] => {
       if (s.currentStreet === 'preflop') {
-        return order.filter((id) => !s.foldedIds.has(id) && !s.allInIds.has(id));
+        return s.preflopOrder.filter((id) => !s.foldedIds.has(id) && !s.allInIds.has(id));
       }
       return buildPostflopOrder(playerIds, s.foldedIds, s.allInIds);
     },
@@ -399,8 +395,8 @@ export function useHandFlow(
   );
 
   /** 現在のアクターID */
-  const currentActorId = (s: HandFlowState, order: string[]): string | null => {
-    const ao = activeOrder(s, order);
+  const currentActorId = (s: HandFlowState): string | null => {
+    const ao = activeOrder(s);
     return ao[s.currentActorIdx] ?? null;
   };
 
@@ -494,7 +490,7 @@ export function useHandFlow(
         // 次のストラドル額: 現在のcurrentBetの2倍（初回はbigBlind*2）
         const straddleAmount = state.currentBet * 2;
         setState((prev) => {
-          const order = activeOrder(prev, preflopOrder);
+          const order = activeOrder(prev);
           const actorId = order[prev.currentActorIdx];
           if (!actorId) return prev;
 
@@ -525,11 +521,9 @@ export function useHandFlow(
             newTotalContributions[actorId] = (newTotalContributions[actorId] ?? 0) + added;
           }
 
-          // straddleをstate外で管理
-          setCurrentStraddle(straddleAmount);
-
           // 新しいpreflopOrderを構築（straddleしたプレイヤーを末尾へ）
           // ストラドルしたアクターの次のプレイヤーから始まり、アクターが最後になる順番
+          const preflopOrder = prev.preflopOrder;
           const actorInPreflopIdx = preflopOrder.indexOf(actorId);
           let newOrder: string[];
           if (actorInPreflopIdx >= 0) {
@@ -540,7 +534,6 @@ export function useHandFlow(
           } else {
             newOrder = preflopOrder;
           }
-          setPreflopOrder(newOrder);
 
           // 新しいactiveOrder（fold/allin除外）
           const newActiveOrder = newOrder.filter(
@@ -562,6 +555,8 @@ export function useHandFlow(
             pot: newPot,
             currentActorIdx: newActorIdx,
             closingPlayerId: newClosingPlayerId,
+            preflopOrder: newOrder,
+            currentStraddle: straddleAmount,
             phase: 'action',
           };
         });
@@ -572,7 +567,7 @@ export function useHandFlow(
 
       setState((prev) => {
         // アクション前のアクティブ順でアクターを特定
-        const order = activeOrder(prev, preflopOrder);
+        const order = activeOrder(prev);
         const actorId = order[prev.currentActorIdx];
         if (!actorId) return prev;
 
@@ -644,7 +639,7 @@ export function useHandFlow(
 
         // アクション後の新しいorder（fold済み・allin済みを除く）
         const newOrder = prev.currentStreet === 'preflop'
-          ? preflopOrder.filter((id) => !newFolded.has(id) && !newAllIn.has(id))
+          ? prev.preflopOrder.filter((id) => !newFolded.has(id) && !newAllIn.has(id))
           : buildPostflopOrder(playerIds, newFolded, newAllIn);
 
         // ---- 次のインデックス計算 ----
@@ -787,7 +782,7 @@ export function useHandFlow(
       setHistory((h) => [...h, state]);
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [state, activeOrder, preflopOrder, players, playerIds, bigBlind],
+    [state, activeOrder, players, playerIds, bigBlind],
   );
 
   /** 手札入力画面からアクションフェーズへ進む（スキップ/入力完了で呼ぶ） */
@@ -929,7 +924,7 @@ export function useHandFlow(
     setState((prev) => (prev.phase === 'action' ? { ...prev, phase: 'hole-cards' } : prev));
   }, []);
 
-  const actorId = currentActorId(state, preflopOrder);
+  const actorId = currentActorId(state);
   const actorPlayer = players.find((p) => p.id === actorId) ?? null;
   const toCall = actorId ? callAmount(state, actorId) : 0;
 
@@ -999,7 +994,7 @@ export function useHandFlow(
     // straddleありの場合: straddleアクション後の次のプレイヤーがアクター
     // → preflopOrder上で最初にアクションする人（idx=0）または
     //   straddleアクションの連鎖中の次の人
-    const currentAO = activeOrder(state, preflopOrder);
+    const currentAO = activeOrder(state);
     const currentActorInOrder = currentAO[state.currentActorIdx];
 
     if (!currentActorInOrder) return false;
@@ -1028,7 +1023,7 @@ export function useHandFlow(
     canGoBack: history.length > 0,
     canBackToHoleCards: history.length === 0 && state.phase === 'action',
     canStraddle,
-    currentStraddle,
+    currentStraddle: state.currentStraddle,
     startAction,
     backToHoleCards,
     setHoleCards,

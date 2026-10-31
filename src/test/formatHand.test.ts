@@ -253,6 +253,34 @@ describe('generateHandText', () => {
     });
   });
 
+  describe('ヘッズアップのブラインド', () => {
+    it('SB/BTN が small blind、BB が big blind をポストする', () => {
+      const sessionHU: SessionConfig = {
+        ...session3way,
+        players: [
+          { id: 'btn', name: 'Hero', stack: 1000, position: 0 },
+          { id: 'bb', name: 'BB_player', stack: 1000, position: 1 },
+        ],
+      };
+      const hand: HandData = {
+        ...handPreflopOnly,
+        streets: {
+          preflop: {
+            actions: [
+              { playerId: 'btn', type: 'call', amount: 5 },
+              { playerId: 'bb', type: 'check' },
+            ],
+          },
+          flop: { actions: [], board: [] },
+        },
+      };
+      const text = generateHandText(hand, sessionHU);
+      expect(text).toContain('SB/BTN (hero) posts small blind $5');
+      expect(text).toContain('BB posts big blind $10');
+      expect(text).toContain('Flop (2 players, Pot size: 20)');
+    });
+  });
+
   describe('フロップ', () => {
     it('Flopヘッダーに人数・ポットサイズ・ボードカードが含まれる', () => {
       const text = generateHandText(handWithFlop, session3way);
@@ -268,6 +296,63 @@ describe('generateHandText', () => {
     it('フロップのbetアクションがhero識別子付きで出力される', () => {
       const text = generateHandText(handWithFlop, session3way);
       expect(text).toContain('BTN (hero) bets $40');
+    });
+
+    it('BBが3betしたとき、BBのポスト分を二重に数えずにFlopのポットを出す', () => {
+      // BTN 30 → BB 90 に 3bet → BTN コール(+60)。ポット = SB 5 + 90 + 90 = 185
+      const hand: HandData = {
+        ...handPreflopOnly,
+        pot: 185,
+        streets: {
+          preflop: {
+            actions: [
+              { playerId: 'btn', type: 'raise', amount: 30 },
+              { playerId: 'sb', type: 'fold' },
+              { playerId: 'bb', type: 'raise', amount: 90 },
+              { playerId: 'btn', type: 'call', amount: 60 },
+            ],
+          },
+          flop: { actions: [], board: [] },
+        },
+      };
+      const text = generateHandText(hand, session3way);
+      expect(text).toContain('Flop (2 players, Pot size: 185)');
+    });
+
+    it('コールした人が後でレイズしたとき、コール分を二重に数えない', () => {
+      // プリフロップ: 全員 10 で揃いポット 30。
+      // フロップ: BB bet 20 → BTN call(+20) → SB raise 80 → BB call(+60) → BTN raise 200(+180)
+      //           → SB call(+120) → BB call(+120)。3人とも 200 投入 → ターン開始 630
+      const hand: HandData = {
+        ...handPreflopOnly,
+        pot: 630,
+        streets: {
+          preflop: {
+            actions: [
+              { playerId: 'btn', type: 'call', amount: 10 },
+              { playerId: 'sb', type: 'call', amount: 5 },
+              { playerId: 'bb', type: 'check' },
+            ],
+          },
+          flop: {
+            actions: [
+              { playerId: 'sb', type: 'check' },
+              { playerId: 'bb', type: 'bet', amount: 20 },
+              { playerId: 'btn', type: 'call', amount: 20 },
+              { playerId: 'sb', type: 'raise', amount: 80 },
+              { playerId: 'bb', type: 'call', amount: 60 },
+              { playerId: 'btn', type: 'raise', amount: 200 },
+              { playerId: 'sb', type: 'call', amount: 120 },
+              { playerId: 'bb', type: 'call', amount: 120 },
+            ],
+            board: [],
+          },
+          turn: { actions: [], board: [] },
+        },
+      };
+      const text = generateHandText(hand, session3way);
+      expect(text).toContain('Flop (3 players, Pot size: 30)');
+      expect(text).toContain('Turn (3 players, Pot size: 630)');
     });
 
     it('プリフロップのみの場合はFlopセクションが出力されない', () => {

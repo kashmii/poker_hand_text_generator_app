@@ -423,4 +423,47 @@ describe('useHandFlow: goBack（履歴管理）', () => {
 
   });
 
+  // ------------------------------------------------------------------
+  // ストラドルの取り消し
+  // ------------------------------------------------------------------
+  describe('ストラドルを goBack で取り消す', () => {
+
+    /** 6人テーブル: [BTN, SB, BB, UTG, HJ, CO] */
+    function makeSession6max(): SessionConfig {
+      const ids = ['btn', 'sb', 'bb', 'utg', 'hj', 'co'];
+      return {
+        ...makeSession3way(),
+        players: ids.map((id, i) => ({ id, name: id.toUpperCase(), stack: 1000, position: i })),
+      };
+    }
+
+    it('アクション順・ストラドル額・ストラドル可否がストラドル前に戻る', () => {
+      const { result } = renderHook(() => useHandFlow(makeSession6max()));
+      skipHoleCards(result);
+      expect(result.current.actorId).toBe('utg');
+
+      act(() => { result.current.commitAction('straddle'); }); // UTG straddle 20
+      expect(result.current.actorId).toBe('hj');
+      expect(result.current.currentStraddle).toBe(20);
+
+      act(() => { result.current.goBack(); });
+      expect(result.current.actorId).toBe('utg');
+      expect(result.current.currentStraddle).toBe(0);
+      expect(result.current.canStraddle).toBe(true);
+      expect(result.current.state.preflopOrder).toEqual(['utg', 'hj', 'co', 'btn', 'sb', 'bb']);
+    });
+
+    it('取り消し後に UTG がコールすると、次は HJ の番になる', () => {
+      const { result } = renderHook(() => useHandFlow(makeSession6max()));
+      skipHoleCards(result);
+      act(() => { result.current.commitAction('straddle'); });
+      act(() => { result.current.goBack(); });
+
+      act(() => { result.current.commitAction('call'); }); // UTG call 10
+      expect(result.current.actorId).toBe('hj');
+      expect(result.current.state.closingPlayerId).toBe('bb');
+    });
+
+  });
+
 });

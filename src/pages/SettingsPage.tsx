@@ -2,11 +2,12 @@ import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import AuthBar from '../components/auth/AuthBar';
+import { THEME_OPTIONS, initTheme, setTheme, type Theme } from '../utils/theme';
 
 const CONTACT_EMAIL = 'pokerhtgapp@gmail.com';
 
 /**
- * /settings : ログイン中のアカウントの画面（ログアウト・削除の依頼先など）。
+ * /settings : 表示テーマの切替（未ログインでも使える）と、ログイン中のアカウントの画面（ログアウト・削除の依頼先など）。
  * 卓の設定（ブラインド・人数）は /setup の「セッション設定」で変える。
  */
 export default function SettingsPage() {
@@ -16,6 +17,12 @@ export default function SettingsPage() {
   // 戻り先（過去ハンド一覧など）と、戻るときにその画面へ返す state。URL直打ちなどで無いときはトップへ
   const { from = '/setup', returnState } = (location.state as { from?: string; returnState?: unknown } | null) ?? {};
   const [error, setError] = useState<string | null>(null);
+  const [theme, setThemeState] = useState<Theme>(() => initTheme());
+
+  const handleThemeChange = (next: Theme) => {
+    setTheme(next);
+    setThemeState(next);
+  };
 
   const handleSignOut = async () => {
     setError(null);
@@ -76,9 +83,28 @@ export default function SettingsPage() {
         <button type="button" className="btn-secondary" onClick={() => navigate(from, { state: returnState })}>
           ← 戻る
         </button>
-        <h2>アカウント</h2>
+        <h2>設定</h2>
       </div>
       {body}
+      {/* 表示テーマはログインと関係なく、この端末に保存する */}
+      <section className="settings__section">
+        <h3>表示テーマ</h3>
+        <div className="theme-options" role="radiogroup" aria-label="表示テーマ">
+          {THEME_OPTIONS.map((o) => (
+            <button
+              key={o.value}
+              type="button"
+              role="radio"
+              aria-checked={theme === o.value}
+              className={`theme-btn${theme === o.value ? ' theme-btn--active' : ''}`}
+              onClick={() => handleThemeChange(o.value)}
+            >
+              {o.label}
+            </button>
+          ))}
+        </div>
+        <p className="hint">この端末にだけ保存されます。</p>
+      </section>
       <p className="settings__legal">
         <Link to="/privacy">プライバシーポリシー</Link>
       </p>

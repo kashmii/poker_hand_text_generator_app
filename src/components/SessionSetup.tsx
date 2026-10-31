@@ -152,7 +152,10 @@ export default function SessionSetup({ onStart, onUpdate, onViewResult, initialS
           )}
         </div>
       </form>
+      {/* 表示テーマはログインしていなくても変えられるので、未ログインでも入口を出す */}
       <p className="setup-legal">
+        <Link to="/settings">表示設定</Link>
+        <span className="setup-legal__sep">·</span>
         <Link to="/privacy">プライバシーポリシー</Link>
       </p>
     </div>

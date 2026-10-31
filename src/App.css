@@ -15,18 +15,42 @@ svg * {
   -webkit-user-select: none;
 }
 
+/* ===== THEME ===== */
+/* デフォルト（ネイビー）。テーマ切替は <html data-theme="..."> で下の上書きを効かせる（src/utils/theme.ts） */
 :root {
-  --color-bg: #0f1923;
-  --color-surface: #1a2535;
-  --color-surface2: #243047;
-  --color-border: #2e3f58;
+  color-scheme: dark;
+  --color-bg: #16212e;
+  --color-surface: #1f2c3d;
+  --color-surface2: #2a3a52;
+  --color-border: #3a4d6b;
   --color-primary: #3b82f6;
   --color-primary-hover: #2563eb;
+  /* 選択中のカード・開いたアコーディオンなど、primary を薄く敷く背景 */
+  --color-primary-tint: #22375a;
   --color-danger: #ef4444;
   --color-success: #22c55e;
-  --color-text: #e2e8f0;
-  --color-text-muted: #94a3b8;
+  --color-text: #e8eef5;
+  --color-text-muted: #a3b2c7;
   --color-red: #f87171;
+  /* ポット額・勝者選択の強調 */
+  --color-gold: var(--color-gold);
+  --color-gold-tint: var(--color-gold-tint);
+  /* 勝者選択のポジションバッジ */
+  --color-pos-badge-bg: rgba(99, 102, 241, 0.35);
+  --color-pos-badge-fg: #e0e7ff;
+  /* アクションボタン */
+  --action-fold-bg: #4b2020;
+  --action-fold-fg: #fca5a5;
+  --action-check-bg: #1a3a1a;
+  --action-check-fg: #86efac;
+  --action-call-bg: #1a2e4a;
+  --action-call-fg: #93c5fd;
+  --action-bet-bg: #3a2a00;
+  --action-bet-fg: #fcd34d;
+  --action-allin-bg: #4a1a3a;
+  --action-allin-fg: #f0abfc;
+  --action-straddle-bg: #1a3a4a;
+  --action-straddle-fg: #7dd3fc;
   --radius: 8px;
   --radius-sm: 4px;
   font-family:
@@ -35,6 +59,39 @@ svg * {
   font-size: 14px;
   color: var(--color-text);
   background: var(--color-bg);
+}
+
+/* ミスト（ライト） */
+:root[data-theme='mist'] {
+  color-scheme: light;
+  --color-bg: #eef2f4;
+  --color-surface: #ffffff;
+  --color-surface2: #e7edf0;
+  --color-border: #cdd8dd;
+  --color-primary: #0891b2;
+  --color-primary-hover: #0e7490;
+  --color-primary-tint: #d9eef2;
+  --color-danger: #dc2626;
+  --color-success: #15803d;
+  --color-text: #1c2b31;
+  --color-text-muted: #607078;
+  --color-red: #dc2626;
+  --color-gold: #b45309;
+  --color-gold-tint: rgba(180, 83, 9, 0.1);
+  --color-pos-badge-bg: rgba(8, 145, 178, 0.15);
+  --color-pos-badge-fg: #0e6b7d;
+  --action-fold-bg: #fde2e2;
+  --action-fold-fg: #b91c1c;
+  --action-check-bg: #dcfce7;
+  --action-check-fg: #15803d;
+  --action-call-bg: #dbeafe;
+  --action-call-fg: #1d4ed8;
+  --action-bet-bg: #fef3c7;
+  --action-bet-fg: #b45309;
+  --action-allin-bg: #fae8ff;
+  --action-allin-fg: #a21caf;
+  --action-straddle-bg: #d9eef2;
+  --action-straddle-fg: #0e6b7d;
 }
 
 body {
@@ -494,7 +551,7 @@ input[type='radio'] {
   background: var(--color-surface2);
 }
 .accordion-item--open .accordion-header {
-  background: #1e3a5f;
+  background: var(--color-primary-tint);
   border-bottom: 1px solid var(--color-border);
 }
 
@@ -618,6 +675,25 @@ input[type='radio'] {
 .settings__section h3 {
   margin-bottom: 0.35rem;
 }
+.theme-options {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.35rem;
+}
+.theme-btn {
+  flex: 1;
+  background: var(--color-surface2);
+  color: var(--color-text-muted);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 0.6rem 0.8rem;
+  font-weight: 600;
+}
+.theme-btn--active {
+  background: var(--color-primary);
+  color: #fff;
+  border-color: var(--color-primary);
+}
 .settings__section .btn-full {
   margin-top: 0.5rem;
 }
@@ -679,6 +755,10 @@ input[type='radio'] {
   font-size: 0.85em;
 }
 .setup-legal a {
+  color: var(--color-text-muted);
+}
+.setup-legal__sep {
+  margin: 0 0.5rem;
   color: var(--color-text-muted);
 }
 
@@ -899,6 +979,8 @@ input[type='radio'] {
   font-size: 0.8rem;
   line-height: 1.6;
   color: var(--color-text);
+  /* Courier New は線が細く、font-weight を上げると太字まで一気に飛ぶので、輪郭に薄い線を足して少しだけ太らせる */
+  -webkit-text-stroke: 0.3px currentColor;
   white-space: pre-wrap;
   word-break: break-word;
   overflow-x: auto;
@@ -936,7 +1018,7 @@ input[type='radio'] {
   font-size: 0.8rem;
   font-weight: 700;
   color: var(--color-primary);
-  background: #1e3a5f;
+  background: var(--color-primary-tint);
   padding: 0.2rem 0.6rem;
   border-radius: var(--radius-sm);
   letter-spacing: 0.08em;
@@ -1100,32 +1182,32 @@ input[type='radio'] {
 }
 
 .action-btn--fold {
-  background: #4b2020;
-  color: #fca5a5;
+  background: var(--action-fold-bg);
+  color: var(--action-fold-fg);
 }
 .action-btn--check {
-  background: #1a3a1a;
-  color: #86efac;
+  background: var(--action-check-bg);
+  color: var(--action-check-fg);
 }
 .action-btn--call {
-  background: #1a2e4a;
-  color: #93c5fd;
+  background: var(--action-call-bg);
+  color: var(--action-call-fg);
 }
 .action-btn--bet {
-  background: #3a2a00;
-  color: #fcd34d;
+  background: var(--action-bet-bg);
+  color: var(--action-bet-fg);
 }
 .action-btn--raise {
-  background: #3a2a00;
-  color: #fcd34d;
+  background: var(--action-bet-bg);
+  color: var(--action-bet-fg);
 }
 .action-btn--allin {
-  background: #4a1a3a;
-  color: #f0abfc;
+  background: var(--action-allin-bg);
+  color: var(--action-allin-fg);
 }
 .action-btn--straddle {
-  background: #1a3a4a;
-  color: #7dd3fc;
+  background: var(--action-straddle-bg);
+  color: var(--action-straddle-fg);
 }
 
 .action-back-btn {
@@ -1319,9 +1401,9 @@ input[type='radio'] {
   bottom: 1rem;
   right: 1rem;
   z-index: 9999;
-  background: #1e293b;
-  color: #94a3b8;
-  border: 1px dashed #475569;
+  background: var(--color-surface2);
+  color: var(--color-text-muted);
+  border: 1px dashed var(--color-border);
   border-radius: var(--radius-md);
   padding: 0.5rem 0.85rem;
   font-size: 0.8rem;
@@ -1333,8 +1415,8 @@ input[type='radio'] {
 }
 .dev-dummy-btn:hover {
   opacity: 1;
-  border-color: #94a3b8;
-  color: #e2e8f0;
+  border-color: var(--color-text-muted);
+  color: var(--color-text);
 }
 /* 2つ目のDEVボタンは1つ目に重ならないよう上に置く */
 .dev-dummy-btn--second {
@@ -1347,17 +1429,17 @@ input[type='radio'] {
   font-weight: 700;
   padding: 0.1rem 0.35rem;
   border-radius: 4px;
-  border: 1px solid #4b5563;
-  background: #1f2937;
-  color: #9ca3af;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface2);
+  color: var(--color-text-muted);
   cursor: pointer;
   letter-spacing: 0.03em;
   line-height: 1.4;
   transition: background 0.15s, color 0.15s;
 }
 .rndm-btn:hover:not(:disabled) {
-  background: #374151;
-  color: #d1d5db;
+  background: var(--color-border);
+  color: var(--color-text);
 }
 .rndm-btn:disabled {
   opacity: 0.35;
@@ -1636,7 +1718,7 @@ input[type='radio'] {
 }
 
 .winner-panel__pot-amount {
-  color: #fbbf24;
+  color: var(--color-gold);
   font-weight: 700;
   font-size: 1.1rem;
 }
@@ -1668,8 +1750,8 @@ input[type='radio'] {
   }
 }
 .winner-btn--selected {
-  border-color: #fbbf24;
-  background: rgba(251, 191, 36, 0.1);
+  border-color: var(--color-gold);
+  background: var(--color-gold-tint);
 }
 
 .winner-btn__check {
@@ -1680,8 +1762,8 @@ input[type='radio'] {
 .winner-btn__pos {
   font-weight: 700;
   font-size: 0.9rem;
-  color: #e0e7ff;
-  background: rgba(99, 102, 241, 0.35);
+  color: var(--color-pos-badge-fg);
+  background: var(--color-pos-badge-bg);
   padding: 0.1rem 0.45rem;
   border-radius: var(--radius-sm);
   min-width: 2.5rem;
@@ -1730,8 +1812,8 @@ input[type='radio'] {
   cursor: pointer;
 }
 .winner-chop-toggle--on {
-  border-color: #fbbf24;
-  background: rgba(251, 191, 36, 0.1);
+  border-color: var(--color-gold);
+  background: var(--color-gold-tint);
 }
 
 /* ハンド終了の確認（生き残りが1人のとき） */
@@ -1740,7 +1822,7 @@ input[type='radio'] {
   cursor: default;
 }
 .hand-end__winner:hover {
-  border-color: #fbbf24;
+  border-color: var(--color-gold);
 }
 .hand-end__actions {
   display: flex;

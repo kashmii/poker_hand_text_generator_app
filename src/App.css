@@ -979,6 +979,8 @@ input[type='radio'] {
   font-size: 0.8rem;
   line-height: 1.6;
   color: var(--color-text);
+  /* Courier New は線が細く、font-weight を上げると太字まで一気に飛ぶので、輪郭に薄い線を足して少しだけ太らせる */
+  -webkit-text-stroke: 0.3px currentColor;
   white-space: pre-wrap;
   word-break: break-word;
   overflow-x: auto;

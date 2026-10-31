@@ -5,9 +5,11 @@ import type {
   Card,
   Player,
   ShowdownEntry,
+  Street,
 } from '../types/poker';
 import { cardLabel } from './card';
 import { positionLabels } from './positions';
+import { STREETS } from './streets';
 
 // ========== カード表示 ==========
 function formatCardsSpaced(cards: Card[]): string {
@@ -109,12 +111,11 @@ export function generateHandText(
   };
 
   /** ストリート開始時点のfold済みプレイヤーIDセットを計算する */
-  const foldedBeforeStreet = (upTo: 'preflop' | 'flop' | 'turn' | 'river'): Set<string> => {
+  const foldedBeforeStreet = (upTo: Street): Set<string> => {
     const folded = new Set<string>();
-    const order = ['preflop', 'flop', 'turn', 'river'] as const;
-    const upToIdx = order.indexOf(upTo);
+    const upToIdx = STREETS.indexOf(upTo);
     for (let si = 0; si < upToIdx; si++) {
-      const s = order[si];
+      const s = STREETS[si];
       const actions = s === 'preflop'
         ? hand.streets.preflop.actions
         : (hand.streets[s]?.actions ?? []);
@@ -261,18 +262,17 @@ function blindPlayers(players: Player[]): { sbPlayer: Player; bbPlayer: Player }
  */
 function computeStreetPot(
   hand: HandData,
-  upToStreet: 'preflop' | 'flop' | 'turn' | 'river',
+  upToStreet: Street,
   session: SessionConfig,
 ): number {
   const { players, smallBlind, bigBlind, ante } = session;
   let pot = smallBlind + bigBlind + ante;
 
   // straddleはpreflopのアクションに含まれているので自動的に加算される
-  const streetOrder = ['preflop', 'flop', 'turn', 'river'] as const;
-  const upToIdx = streetOrder.indexOf(upToStreet);
+  const upToIdx = STREETS.indexOf(upToStreet);
 
   for (let si = 0; si <= upToIdx; si++) {
-    const street = streetOrder[si];
+    const street = STREETS[si];
     const actions =
       street === 'preflop'
         ? hand.streets.preflop.actions

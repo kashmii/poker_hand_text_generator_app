@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import type { SessionConfig, ActionType, Card } from '../../types/poker';
+import type { SessionConfig, ActionType, BoardStreet, Card } from '../../types/poker';
 import type { ShowdownRecord } from './types';
 import { computeSidePots } from '../../utils/sidePots';
 import {
@@ -64,7 +64,7 @@ export function useHandFlow(
       /** ボードカード確定してアクションフェーズへ（アクション可能者がいない場合は次のボード入力へ） */
       confirmBoard: () => dispatch({ type: 'confirm-board' }),
       /** ボードカードを更新 */
-      updateBoard: (street: 'flop' | 'turn' | 'river', idx: number, card: Card | null) =>
+      updateBoard: (street: BoardStreet, idx: number, card: Card | null) =>
         dispatch({ type: 'update-board', street, idx, card }),
       /** ショーダウン: 現在のプレイヤーの show / muck を記録し次へ */
       commitShowdown: (record: ShowdownRecord) => dispatch({ type: 'commit-showdown', record }),

@@ -1,20 +1,17 @@
-import type { SessionConfig, ActionType, Card, Player } from '../../types/poker';
-import type { HandFlowState, RecordedAction, ShowdownRecord, Street } from './types';
+import type { SessionConfig, ActionType, BoardStreet, Card, Player, Street } from '../../types/poker';
+import type { HandFlowState, RecordedAction, ShowdownRecord } from './types';
 import { computeSidePots } from '../../utils/sidePots';
 import type { Pot, WinnerEntry } from '../../utils/sidePots';
 import { splitPot } from '../../utils/splitPot';
 import { evaluateShowdown } from '../../utils/evaluateShowdown';
 import type { ShowdownEvaluation } from '../../utils/evaluateShowdown';
 import { filledCards } from '../../utils/card';
+import { STREETS } from '../../utils/streets';
 
 /**
  * ハンド1件の進行ロジック（純粋関数）。useHandFlow はここの reducer に処理を任せる。
  * state は React に依存しないので、フックを介さずにユニットテストできる。
  */
-
-const STREETS: Street[] = ['preflop', 'flop', 'turn', 'river'];
-
-type BoardStreet = 'flop' | 'turn' | 'river';
 
 /** reducer が参照するセッション由来の値 */
 export interface HandFlowContext {
@@ -443,7 +440,6 @@ export function createInitialState(session: SessionConfig): HandFlowState {
     holeCards: null,
     showdownQueue: [],
     showdownRecords: [],
-    winnerId: null,
     pots: [],
     potResolveIdx: -1,
     carriedWinnerIds: [],

@@ -1,8 +1,8 @@
 import type { HandData, SessionConfig } from '../types/poker';
 import { uuid } from './uuid';
 import { computeHeroResult } from './computeHeroResult';
+import { STREETS } from './streets';
 
-const STREETS = ['preflop', 'flop', 'turn', 'river'] as const;
 const TITLES = [
   'KKでBTNから3bet',
   'AAをスローブレイ',

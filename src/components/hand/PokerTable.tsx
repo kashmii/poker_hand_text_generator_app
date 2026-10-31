@@ -1,4 +1,4 @@
-import type { Card, Player, Suit } from '../../types/poker';
+import type { Card, Player, Street, Suit } from '../../types/poker';
 import type { HandFlowState } from './types';
 import { positionLabels } from '../../utils/positions';
 import { cardLabel } from '../../utils/card';
@@ -105,7 +105,7 @@ export default function PokerTable({ players, state, actorId, heroId, onBoardCli
     y: Math.sin(btnAngle) * 65,
   };
 
-  const streetLabel: Record<string, string> = {
+  const streetLabel: Record<Street, string> = {
     preflop: 'PREFLOP', flop: 'FLOP', turn: 'TURN', river: 'RIVER',
   };
 

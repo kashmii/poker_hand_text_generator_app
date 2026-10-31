@@ -1,6 +1,5 @@
 import type { HandData, StreetData } from '../types/poker';
-
-const STREET_ORDER = ['preflop', 'flop', 'turn', 'river'] as const;
+import { STREETS } from './streets';
 
 /**
  * computeHeroResult はヒーローの収支（勝ち＝正 / 負け＝負）を計算する。
@@ -42,7 +41,7 @@ export function computeHeroResult(hand: HandData): number | null {
   const folded = new Set<string>();
   const total: Record<string, number> = Object.fromEntries(ids.map((id) => [id, 0]));
 
-  for (const street of STREET_ORDER) {
+  for (const street of STREETS) {
     const sd: StreetData | undefined =
       street === 'preflop' ? hand.streets.preflop : hand.streets[street];
     if (!sd) continue;

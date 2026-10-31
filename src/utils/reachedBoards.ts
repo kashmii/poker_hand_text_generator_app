@@ -1,10 +1,7 @@
-import type { Card } from '../types/poker';
-import type { Street } from '../components/hand/types';
+import type { BoardStreet, Card, Street } from '../types/poker';
+import { STREETS } from './streets';
 
-type BoardStreet = 'flop' | 'turn' | 'river';
 type Boards = Record<BoardStreet, (Card | null)[]>;
-
-const STREETS: Street[] = ['preflop', 'flop', 'turn', 'river'];
 
 /**
  * 到達したストリートのボードだけを残し、未到達ストリートのボードを空にして返す。

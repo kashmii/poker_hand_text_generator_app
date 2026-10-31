@@ -1,7 +1,5 @@
-import type { Card, ActionType } from '../../types/poker';
+import type { Card, ActionType, Street, BoardStreet } from '../../types/poker';
 import type { Pot, WinnerEntry } from '../../utils/sidePots';
-
-export type Street = 'preflop' | 'flop' | 'turn' | 'river';
 
 /** 記録済みの1アクション */
 export interface RecordedAction {
@@ -18,20 +16,13 @@ export interface ShowdownRecord {
   cards?: [Card, Card]; // show の場合のみ
 }
 
-/** ストリート内の状態スナップショット（「戻る」用） */
-export interface StreetSnapshot {
-  street: Street;
-  actions: RecordedAction[];
-  board: (Card | null)[];
-}
-
 /** 全ハンドの進行状態 */
 export interface HandFlowState {
   currentStreet: Street;
   // 各ストリートの確定済みアクション
   streets: Record<Street, RecordedAction[]>;
   // ボードカード
-  boards: Record<'flop' | 'turn' | 'river', (Card | null)[]>;
+  boards: Record<BoardStreet, (Card | null)[]>;
   // 現在のストリートで誰のターンか（playersIndex）
   currentActorIdx: number;
   // fold済みプレイヤーのID集合
@@ -68,8 +59,6 @@ export interface HandFlowState {
   showdownQueue: string[];
   // ショーダウン: 記録済み結果
   showdownRecords: ShowdownRecord[];
-  // ウィナーID（potを取ったプレイヤー）
-  winnerId: string | null;
 
   // ---- サイドポットのカスケード解決（サイド→メインの順で判定） ----
   // 解決対象のポット一覧（computeSidePots の並び = main→side）

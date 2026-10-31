@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import type { SessionConfig, HandData, Action, Card } from '../types/poker';
+import type { SessionConfig, HandData, Action, BoardStreet, Card, Street } from '../types/poker';
 import { positionLabels } from '../utils/positions';
 
 import { useHandFlow } from './hand/useHandFlow';
@@ -13,6 +13,7 @@ import type { WinnerEntry } from './hand/ShowdownPanel';
 import type { RecordedAction } from './hand/types';
 import { fillRandomCards } from '../utils/randomCard';
 import { cardKey, filledCards } from '../utils/card';
+import { BOARD_STREETS } from '../utils/streets';
 import { reachedBoards } from '../utils/reachedBoards';
 import { uuid } from '../utils/uuid';
 import { computeHeroResult } from '../utils/computeHeroResult';
@@ -32,12 +33,10 @@ function generateId() {
   return uuid();
 }
 
-const STREET_LABELS: Record<string, string> = {
+const STREET_LABELS: Record<Street, string> = {
   preflop: 'PREFLOP', flop: 'FLOP', turn: 'TURN', river: 'RIVER',
 };
 
-type BoardStreet = 'flop' | 'turn' | 'river';
-const BOARD_STREETS: BoardStreet[] = ['flop', 'turn', 'river'];
 /** ボードメモの5スロットと、書き込み先（ストリート・インデックス）の対応 */
 const MEMO_SLOTS: [BoardStreet, number][] = [['flop', 0], ['flop', 1], ['flop', 2], ['turn', 0], ['river', 0]];
 
@@ -207,7 +206,7 @@ export default function HandInput({ session, handNumber, onSave, onCancel, onUpd
   const isHoleCardsPhase = state.phase === 'hole-cards';
   const isShowdown = state.phase === 'showdown';
   const isWinner = state.phase === 'winner';
-  const boardStreet = state.currentStreet as 'flop' | 'turn' | 'river';
+  const boardStreet = state.currentStreet as BoardStreet;
   const holeAllFilled = holeCards[0] !== null && holeCards[1] !== null;
 
   const boardFilledCount = boardCards.length;

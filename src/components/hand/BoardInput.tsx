@@ -1,12 +1,11 @@
 import { useState, type ReactNode } from 'react';
-import type { Card } from '../../types/poker';
-import type { Street } from './types';
+import type { BoardStreet, Card } from '../../types/poker';
 import { fillRandomCards } from '../../utils/randomCard';
 import { cardKey } from '../../utils/card';
 import { EMPTY_PART, isCompleteCard, mergeSlots, type PartialCard } from '../../utils/cardPick';
 import CardPickerPanel from './CardPickerPanel';
 
-const STREET_LABELS: Record<string, string> = {
+const STREET_LABELS: Record<BoardStreet, string> = {
   flop: 'フロップ',
   turn: 'ターン',
   river: 'リバー',
@@ -14,7 +13,7 @@ const STREET_LABELS: Record<string, string> = {
 
 interface Props {
   /** title を渡さない場合は「{ストリート}のカードを入力」をタイトルにする */
-  street?: Street;
+  street?: BoardStreet;
   title?: string;
   /** タイトル行の右側に置く要素（閉じるボタンなど） */
   titleExtra?: ReactNode;
@@ -36,7 +35,7 @@ export default function BoardInput({
   // 確定前の枠の入力途中（ランクだけ・スーツだけ）。確定カードは cards（親）が持つ
   const [partials, setPartials] = useState<PartialCard[]>(() => cards.map(() => EMPTY_PART));
 
-  const label = title ?? `${street ? STREET_LABELS[street] ?? street : ''}のカードを入力`;
+  const label = title ?? `${street ? STREET_LABELS[street] : ''}のカードを入力`;
   const allFilled = cards.every((c) => c !== null);
   const slots = mergeSlots(cards, partials);
 

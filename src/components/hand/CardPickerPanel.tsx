@@ -1,7 +1,8 @@
 import {
-  RANKS, applyPart, isEmptyPart, isRankDisabled, isSuitDisabled,
+  applyPart, isEmptyPart, isRankDisabled, isSuitDisabled,
   type CardPart, type PartialCard,
 } from '../../utils/cardPick';
+import { RANKS } from '../../utils/card';
 import { SUITS } from './suits';
 
 interface Props {

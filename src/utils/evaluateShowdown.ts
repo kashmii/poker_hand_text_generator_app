@@ -1,5 +1,6 @@
 import { Hand } from 'pokersolver';
 import type { Card } from '../types/poker';
+import { cardKey } from './card';
 
 export interface ShowdownHand {
   playerId: string;
@@ -13,8 +14,6 @@ export interface ShowdownEvaluation {
   descriptions: Record<string, string>;
 }
 
-const toSolverCard = (c: Card) => `${c.rank}${c.suit}`;
-
 /**
  * ボード5枚と各プレイヤーの手札から勝者を判定する。
  * 判定できない（ボードが5枚揃っていない／比較対象が2人未満）ときは null。
@@ -27,7 +26,7 @@ export function evaluateShowdown(
 
   const solved = hands.map((h) => ({
     playerId: h.playerId,
-    hand: Hand.solve([...board, ...h.cards].map(toSolverCard)),
+    hand: Hand.solve([...board, ...h.cards].map(cardKey)),
   }));
   const winning = new Set(Hand.winners(solved.map((s) => s.hand)));
 

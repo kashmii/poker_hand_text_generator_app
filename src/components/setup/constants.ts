@@ -32,17 +32,6 @@ export const BLIND_PRESETS: Record<
   ],
 };
 
-export const POSITION_LABELS_BY_COUNT: Record<number, string[]> = {
-  2: ['SB/BTN', 'BB'],
-  3: ['BTN', 'SB', 'BB'],
-  4: ['BTN', 'SB', 'BB', 'UTG'],
-  5: ['BTN', 'SB', 'BB', 'UTG', 'CO'],
-  6: ['BTN', 'SB', 'BB', 'UTG', 'HJ', 'CO'],
-  7: ['BTN', 'SB', 'BB', 'UTG', 'UTG+1', 'HJ', 'CO'],
-  8: ['BTN', 'SB', 'BB', 'UTG', 'UTG+1', 'UTG+2', 'HJ', 'CO'],
-  9: ['BTN', 'SB', 'BB', 'UTG', 'UTG+1', 'UTG+2', 'MP', 'HJ', 'CO'],
-};
-
 // 通貨「なし（アミューズメントなど）」を選んだときの初期ブラインド。アミューズメントは 2/5・BBアンティありが定番
 const NO_CURRENCY_DEFAULT_BLIND = { sb: 2, bb: 5 };
 

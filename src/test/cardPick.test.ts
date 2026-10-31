@@ -1,8 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import {
-  EMPTY_PART, RANKS, applyPart, isRankDisabled, isSuitDisabled, mergeSlots,
+  EMPTY_PART, applyPart, isRankDisabled, isSuitDisabled, mergeSlots,
   type CardPart, type PartialCard,
 } from '../utils/cardPick';
+import { RANKS } from '../utils/card';
 
 /** 押した順に applyPart を適用した結果の枠 */
 function press(slots: PartialCard[], parts: CardPart[]): PartialCard[] {

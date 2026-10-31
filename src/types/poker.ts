@@ -25,6 +25,8 @@ export interface Action {
 
 // ========== ストリート ==========
 export type Street = 'preflop' | 'flop' | 'turn' | 'river';
+/** ボードカードが出るストリート */
+export type BoardStreet = Exclude<Street, 'preflop'>;
 
 export interface StreetData {
   actions: Action[];
@@ -91,12 +93,6 @@ export interface HandData {
 }
 
 // ========== アプリ状態 ==========
-export type AppScreen =
-  | 'session-setup'   // セッション設定
-  | 'hand-input'      // ハンド入力
-  | 'hand-review'     // ハンド確認・出力
-  | 'history';        // 過去ハンド一覧
-
 export type OutputLanguage = 'en' | 'ja';
 export type OutputFormat = 'custom' | 'pokerstars';
 

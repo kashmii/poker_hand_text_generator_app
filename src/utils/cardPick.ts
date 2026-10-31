@@ -1,7 +1,5 @@
 import type { Card, Rank, Suit } from '../types/poker';
-
-export const RANKS: Rank[] = ['A', 'K', 'Q', 'J', 'T', '9', '8', '7', '6', '5', '4', '3', '2'];
-export const SUIT_VALUES: Suit[] = ['h', 'd', 'c', 's'];
+import { RANKS, SUIT_VALUES, cardKey } from './card';
 
 /** 1枠ぶんの入力状態。ランクとスーツは別々に入る（両方そろえばカード確定） */
 export interface PartialCard {
@@ -29,7 +27,7 @@ export function mergeSlots(cards: (Card | null)[], partials: PartialCard[]): Par
 const partKind = (part: CardPart): 'rank' | 'suit' => ('rank' in part ? 'rank' : 'suit');
 
 /** ランク／スーツを入れる枠: その種類がまだ入っていない一番左の枠。なければ null */
-export function findTargetSlot(slots: PartialCard[], kind: 'rank' | 'suit'): number | null {
+function findTargetSlot(slots: PartialCard[], kind: 'rank' | 'suit'): number | null {
   const idx = slots.findIndex((s) => s[kind] === null);
   return idx === -1 ? null : idx;
 }
@@ -44,8 +42,8 @@ export function applyPart(
   return { idx, slot: { ...slots[idx], ...part } };
 }
 
-/** usedSet は "rank+suit"（例: "Ah"）の集合 */
-const key = (rank: Rank, suit: Suit) => `${rank}${suit}`;
+/** usedSet は cardKey（例: "Ah"）の集合 */
+const key = (rank: Rank, suit: Suit) => cardKey({ rank, suit });
 
 /** 外部の使用済みカードに、この入力欄で確定済みのカードを足した集合 */
 function withCompleted(slots: PartialCard[], usedSet: Set<string>): Set<string> {

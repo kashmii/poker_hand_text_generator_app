@@ -1,6 +1,7 @@
-import type { Player } from '../../types/poker';
+import type { Card, Player, Street, Suit } from '../../types/poker';
 import type { HandFlowState } from './types';
-import { POSITION_LABELS_BY_COUNT } from '../setup/constants';
+import { positionLabels } from '../../utils/positions';
+import { cardLabel } from '../../utils/card';
 
 interface Props {
   players: Player[];
@@ -11,10 +12,8 @@ interface Props {
   onBoardClick?: () => void;
 }
 
-const SUIT_SYMBOLS: Record<string, string> = {
-  h: '♥', d: '♦', c: '♣', s: '♠',
-};
-const SUIT_COLORS: Record<string, string> = {
+/** 白地のカード上の色 */
+const SUIT_COLORS: Record<Suit, string> = {
   h: '#cc2222', d: '#cc2222', c: '#111', s: '#111',
 };
 
@@ -72,23 +71,15 @@ function getPlayerPositions(count: number, heroIndex: number) {
   });
 }
 
-function cardLabel(card: { rank: string; suit: string } | null | undefined) {
-  if (!card) return '?';
-  return `${card.rank}${SUIT_SYMBOLS[card.suit] ?? ''}`;
-}
 
 export default function PokerTable({ players, state, actorId, heroId, onBoardClick }: Props) {
-  const posLabels = POSITION_LABELS_BY_COUNT[players.length] ?? [];
+  const posLabels = positionLabels(players.length);
   const heroIndex = players.findIndex((p) => p.id === heroId);
   const safeHeroIndex = heroIndex >= 0 ? heroIndex : 0;
   const positions = getPlayerPositions(players.length, safeHeroIndex);
 
   const { currentStreet, boards, pot, holeCards } = state;
 
-  const boardCards: ({ rank: string; suit: string } | null)[] = [];
-  if (currentStreet !== 'preflop') boardCards.push(...boards.flop);
-  if (currentStreet === 'turn' || currentStreet === 'river') boardCards.push(...boards.turn);
-  if (currentStreet === 'river') boardCards.push(...boards.river);
 
   const currentActions: Record<string, string> = {};
   state.streets[currentStreet].forEach((a) => {
@@ -114,7 +105,7 @@ export default function PokerTable({ players, state, actorId, heroId, onBoardCli
     y: Math.sin(btnAngle) * 65,
   };
 
-  const streetLabel: Record<string, string> = {
+  const streetLabel: Record<Street, string> = {
     preflop: 'PREFLOP', flop: 'FLOP', turn: 'TURN', river: 'RIVER',
   };
 
@@ -205,7 +196,7 @@ export default function PokerTable({ players, state, actorId, heroId, onBoardCli
           const totalW = 5 * cardW + 4 * gap;
           const startX = -totalW / 2;
           // どのカードが公開済みか
-          const revealed: ({ rank: string; suit: string } | null)[] = [
+          const revealed: (Card | null)[] = [
             boards.flop[0] ?? null,
             boards.flop[1] ?? null,
             boards.flop[2] ?? null,
@@ -368,7 +359,7 @@ export default function PokerTable({ players, state, actorId, heroId, onBoardCli
                 <g transform={`translate(0, ${nodeR + 4})`}>
                   {holeCards!.map((card, ci) => {
                     const cx = ci === 0 ? -14 : 14;
-                    const color = SUIT_COLORS[card.suit] ?? '#333';
+                    const color = SUIT_COLORS[card.suit];
                     return (
                       <g key={ci} transform={`translate(${cx}, 0)`}>
                         <rect x="-11" y="0" width="22" height="28"

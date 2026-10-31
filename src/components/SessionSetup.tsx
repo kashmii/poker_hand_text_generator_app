@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { SessionConfig } from '../types/poker';
 import { createDefaultPlayers } from '../context/AppContext';
-import { BLIND_PRESETS } from './setup/constants';
+import { BLIND_PRESETS, getDefaultPresetIdx } from './setup/constants';
 import BlindSection from './setup/BlindSection';
 import PlayerSection from './setup/PlayerSection';
 import AuthBar from './auth/AuthBar';
@@ -42,7 +42,7 @@ export default function SessionSetup({ onStart, onUpdate, onViewResult, initialS
 
   const handleCurrencyChange = (val: string) => {
     setCurrency(val);
-    setBlindPresetIdx(0);
+    setBlindPresetIdx(getDefaultPresetIdx(val));
   };
 
   const handlePlayerCountChange = (count: number) => {

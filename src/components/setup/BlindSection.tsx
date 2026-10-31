@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { BLIND_PRESETS } from './constants';
+import { BLIND_PRESETS, isAnteOnByDefault } from './constants';
 
 interface Props {
   currency: string;
@@ -33,7 +33,13 @@ export default function BlindSection({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [blindPresetIdx, currency]);
 
-  const handleAnteToggle = (on: boolean) => {
+  // 通貨変更。アンティがオンになる値は useEffect（currency 変更）が BB に合わせる
+  const handleCurrencyChange = (val: string) => {
+    if (isAnteOnByDefault(val)) setAnteOn(true);
+    onCurrencyChange(val);
+  };
+
+  const handleAnteToggle =(on: boolean) => {
     setAnteOn(on);
     if (on) {
       const bb = currentPresets[blindPresetIdx]?.bb ?? 0;
@@ -53,13 +59,13 @@ export default function BlindSection({
         <label>通貨</label>
         <select
           value={currency}
-          onChange={(e) => onCurrencyChange(e.target.value)}
+          onChange={(e) => handleCurrencyChange(e.target.value)}
           className="input-blind"
         >
           <option value="$">$ ドル</option>
           <option value="₱">₱ フィリピンペソ</option>
           <option value="₩">₩ 韓国ウォン</option>
-          <option value="">なし</option>
+          <option value="">なし（アミューズメントなど）</option>
         </select>
       </div>
 

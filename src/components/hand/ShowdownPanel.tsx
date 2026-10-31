@@ -1,20 +1,15 @@
 import { useState } from 'react';
-import type { Card, Rank, Suit, Player } from '../../types/poker';
+import type { Card, Suit, Player } from '../../types/poker';
 import type { ShowdownRecord } from './types';
 import { pickRandomCards } from '../../utils/randomCard';
 import type { Pot, WinnerEntry } from '../../utils/sidePots';
 import type { ShowdownEvaluation } from '../../utils/evaluateShowdown';
 import { splitPot } from '../../utils/splitPot';
 import { buildPostflopOrder } from './useHandFlow';
+import { EMPTY_PART, isCompleteCard, type PartialCard } from '../../utils/cardPick';
+import { SUITS } from './suits';
+import CardPickerPanel from './CardPickerPanel';
 export type { WinnerEntry };
-
-const RANKS: Rank[] = ['A', 'K', 'Q', 'J', 'T', '9', '8', '7', '6', '5', '4', '3', '2'];
-const SUITS: { value: Suit; label: string; color: string }[] = [
-  { value: 'h', label: '♥', color: '#e53e3e' },
-  { value: 'd', label: '♦', color: '#e53e3e' },
-  { value: 'c', label: '♣', color: 'var(--color-text)' },
-  { value: 's', label: '♠', color: 'var(--color-text)' },
-];
 
 function cardKey(c: Card) {
   return `${c.rank}${c.suit}`;
@@ -51,55 +46,27 @@ export function ShowdownPlayerPanel({
   onCommit,
 }: ShowdownPlayerProps) {
   const [mode, setMode] = useState<'choose' | 'card-input'>('choose');
-  const [activeSlot, setActiveSlot] = useState<0 | 1>(0);
-  const [pendingRank, setPendingRank] = useState<Rank | null>(null);
-  const [cards, setCards] = useState<[Card | null, Card | null]>([null, null]);
+  // 2枠の入力状態（ランクだけ・スーツだけの入力途中も含む）
+  const [slots, setSlots] = useState<PartialCard[]>([EMPTY_PART, EMPTY_PART]);
+  const cards = slots.map((s) => (isCompleteCard(s) ? s : null)) as [Card | null, Card | null];
 
-  // 使用済みセット（外部 + 同スロット以外）
-  const usedSet = new Set<string>([
-    ...usedCards.map(cardKey),
-    ...cards.filter((c, i): c is Card => c !== null && i !== activeSlot).map(cardKey),
-  ]);
+  // この入力欄以外で使用済みのカード
+  const usedSet = new Set<string>(usedCards.map(cardKey));
 
-  const isRankFullyUsed = (r: Rank) =>
-    SUITS.every((s) => usedSet.has(`${r}${s.value}`));
+  const handleSlotChange = (idx: number, slot: PartialCard) =>
+    setSlots((prev) => prev.map((p, i) => (i === idx ? slot : p)));
 
-  const isSuitUsed = (r: Rank, s: Suit) => usedSet.has(`${r}${s}`);
+  const resetSlots = () => setSlots([EMPTY_PART, EMPTY_PART]);
 
-  const handleRank = (r: Rank) => {
-    if (isRankFullyUsed(r)) return;
-    setPendingRank(r);
-  };
-
-  const handleSuit = (s: Suit) => {
-    if (pendingRank === null || isSuitUsed(pendingRank, s)) return;
-    const card: Card = { rank: pendingRank, suit: s };
-    const next: [Card | null, Card | null] = [...cards] as [Card | null, Card | null];
-    next[activeSlot] = card;
-    setCards(next);
-    setPendingRank(null);
-    if (activeSlot === 0 && next[1] === null) setActiveSlot(1);
-    else if (activeSlot === 1 && next[0] === null) setActiveSlot(0);
-  };
-
-  const handleClear = (idx: 0 | 1) => {
-    const next: [Card | null, Card | null] = [...cards] as [Card | null, Card | null];
-    next[idx] = null;
-    setCards(next);
-    setActiveSlot(idx);
-    setPendingRank(null);
-  };
+  const handleRemove = (idx: number) => handleSlotChange(idx, EMPTY_PART);
 
   // DEV only: 未入力スロットをランダムに埋める
   const handleRandomFill = () => {
     const filled = cards.filter((c): c is Card => c !== null);
     const need = cards.filter((c) => c === null).length;
     const picked = pickRandomCards([...usedCards, ...filled], need);
-    const next: [Card | null, Card | null] = [...cards] as [Card | null, Card | null];
     let pi = 0;
-    next.forEach((_, i) => { if (next[i] === null && pi < picked.length) next[i] = picked[pi++]; });
-    setCards(next);
-    setPendingRank(null);
+    setSlots(cards.map((c) => c ?? (pi < picked.length ? picked[pi++] : EMPTY_PART)));
   };
 
   const handleShow = () => {
@@ -186,79 +153,20 @@ export function ShowdownPlayerPanel({
               </button>
             </div>
           )}
-          {/* カードスロット */}
-          <div className="board-input__slots">
-            {([0, 1] as const).map((idx) => {
-              const disp = cardDisp(cards[idx]);
-              const isActive = activeSlot === idx;
-              return (
-                <button
-                  key={idx}
-                  type="button"
-                  className={`board-slot ${isActive ? 'board-slot--active' : ''} ${cards[idx] ? 'board-slot--filled' : ''}`}
-                  onClick={() => { setActiveSlot(idx); setPendingRank(null); }}
-                >
-                  {disp ? (
-                    <>
-                      <span className="board-slot__card" style={{ color: disp.color }}>{disp.label}</span>
-                      <span
-                        className="board-slot__clear"
-                        role="button"
-                        onClick={(e) => { e.stopPropagation(); handleClear(idx); }}
-                      >×</span>
-                    </>
-                  ) : (
-                    <span className="board-slot__empty">{idx + 1}</span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-
-          {/* ランク・スーツ選択 */}
-          <div className="board-picker-panel">
-            <div className="board-picker__ranks">
-              {RANKS.map((r) => {
-                const fullyUsed = isRankFullyUsed(r);
-                return (
-                  <button
-                    key={r}
-                    type="button"
-                    className={`rank-btn ${pendingRank === r ? 'rank-btn--active' : ''} ${fullyUsed ? 'rank-btn--used' : ''}`}
-                    onClick={() => handleRank(r)}
-                    disabled={fullyUsed}
-                  >
-                    {r}
-                  </button>
-                );
-              })}
-            </div>
-            {pendingRank && (
-              <div className="board-picker__suits board-picker__suits--active">
-                {SUITS.map((s) => {
-                  const used = isSuitUsed(pendingRank, s.value);
-                  return (
-                    <button
-                      key={s.value}
-                      type="button"
-                      className={`suit-btn suit-btn--large ${used ? 'suit-btn--used' : ''}`}
-                      style={{ color: used ? '#4b5563' : s.color }}
-                      onClick={() => handleSuit(s.value)}
-                      disabled={used}
-                    >
-                      {s.label}
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-          </div>
+          {/* カード枠＋ランク・スーツ選択 */}
+          <CardPickerPanel
+            slots={slots}
+            usedSet={usedSet}
+            onSlotChange={handleSlotChange}
+            onClear={resetSlots}
+            onRemove={handleRemove}
+          />
 
           <div className="showdown-card-actions">
             <button
               type="button"
               className="btn-secondary"
-              onClick={() => { setMode('choose'); setCards([null, null]); setPendingRank(null); }}
+              onClick={() => { setMode('choose'); resetSlots(); }}
             >
               ← 戻る
             </button>

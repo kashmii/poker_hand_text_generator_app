@@ -1921,7 +1921,6 @@ input[type='radio'] {
   border-radius: var(--radius);
   border: 2px solid var(--color-border);
   background: var(--color-surface2);
-  cursor: pointer;
   font-size: 1.2rem;
   font-weight: 700;
   transition:
@@ -1934,12 +1933,6 @@ input[type='radio'] {
 /* ボードメモ: フロップ | ターン | リバー の区切り */
 .board-slot--group-start {
   margin-left: 0.4rem;
-}
-
-.board-slot--active {
-  border-color: var(--color-primary);
-  background: #1e3a5f;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.3);
 }
 
 .board-slot--filled {
@@ -1958,11 +1951,21 @@ input[type='radio'] {
   font-weight: 400;
 }
 
+/* 入力途中で未入力のランク／スーツ */
+.board-slot__missing {
+  color: var(--color-text-muted);
+  font-weight: 400;
+}
+
+/* フロップ・ボードメモで1枚だけ消す × */
 .board-slot__clear {
   position: absolute;
-  top: 2px;
-  right: 4px;
-  font-size: 0.65rem;
+  top: 0;
+  right: 0;
+  padding: 4px 6px;
+  background: none;
+  border: none;
+  font-size: 0.8rem;
   color: var(--color-text-muted);
   cursor: pointer;
   line-height: 1;
@@ -1980,11 +1983,6 @@ input[type='radio'] {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-}
-
-.board-picker-panel--inactive {
-  opacity: 0.4;
-  pointer-events: none;
 }
 
 .board-picker__ranks {
@@ -2005,10 +2003,15 @@ input[type='radio'] {
   gap: 0.5rem;
 }
 
-/* ランク未選択時: 視覚的にグレーアウト、操作不可 */
-.board-picker__suits:not(.board-picker__suits--active) {
-  opacity: 0.3;
-  pointer-events: none;
+/* ランク「2」の右の空きマスに置くクリアボタン */
+.board-picker__ranks .picker-clear-btn {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+.board-picker__ranks .picker-clear-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
 .suit-btn--large {

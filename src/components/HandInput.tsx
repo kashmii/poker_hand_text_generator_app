@@ -1,11 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
-import type { SessionConfig, HandData, Action, Card, Rank, Suit } from '../types/poker';
+import type { SessionConfig, HandData, Action, Card } from '../types/poker';
 import { POSITION_LABELS_BY_COUNT } from './setup/constants';
 
 import { useHandFlow } from './hand/useHandFlow';
 import PokerTable from './hand/PokerTable';
 import ActionPanel from './hand/ActionPanel';
 import BoardInput from './hand/BoardInput';
+import CardPickerPanel from './hand/CardPickerPanel';
 import { ShowdownPlayerPanel, WinnerPanel, HandEndPanel } from './hand/ShowdownPanel';
 import type { WinnerEntry } from './hand/ShowdownPanel';
 import type { RecordedAction } from './hand/types';
@@ -13,14 +14,7 @@ import { pickRandomCards } from '../utils/randomCard';
 import { reachedBoards } from '../utils/reachedBoards';
 import { uuid } from '../utils/uuid';
 import { computeHeroResult } from '../utils/computeHeroResult';
-
-const RANKS: Rank[] = ['A', 'K', 'Q', 'J', 'T', '9', '8', '7', '6', '5', '4', '3', '2'];
-const SUITS: { value: Suit; label: string; color: string }[] = [
-  { value: 'h', label: '♥', color: '#e53e3e' },
-  { value: 'd', label: '♦', color: '#e53e3e' },
-  { value: 'c', label: '♣', color: 'var(--color-text)' },
-  { value: 's', label: '♠', color: 'var(--color-text)' },
-];
+import { EMPTY_PART, isCompleteCard, type PartialCard } from '../utils/cardPick';
 
 interface Props {
   session: SessionConfig;
@@ -69,10 +63,9 @@ export default function HandInput({ session, handNumber, onSave, onCancel, onUpd
     currentPotSuggestion,
   } = useHandFlow(session);
 
-  // ホールカード入力用ローカル state
-  const [holeSlot, setHoleSlot] = useState<0 | 1>(0);
-  const [holePendingRank, setHolePendingRank] = useState<Rank | null>(null);
-  const [holeCards, setHoleCards] = useState<[Card | null, Card | null]>([null, null]);
+  // ホールカード入力用ローカル state: 2枠の入力状態（ランクだけ・スーツだけの入力途中も含む）
+  const [holeSlots, setHoleSlots] = useState<PartialCard[]>([EMPTY_PART, EMPTY_PART]);
+  const holeCards = holeSlots.map((s) => (isCompleteCard(s) ? s : null)) as [Card | null, Card | null];
 
   // ボード先行入力メモを開いているか
   const [memoOpen, setMemoOpen] = useState(false);
@@ -81,52 +74,35 @@ export default function HandInput({ session, handNumber, onSave, onCancel, onUpd
 
   /** 手札後入力パネルを開く。現在の手札（state）を編集バッファへ読み込む */
   const openHoleMemo = () => {
-    setHoleCards(state.holeCards ? [state.holeCards[0], state.holeCards[1]] : [null, null]);
-    setHoleSlot(0);
-    setHolePendingRank(null);
+    setHoleSlots(state.holeCards ? [state.holeCards[0], state.holeCards[1]] : [EMPTY_PART, EMPTY_PART]);
     setMemoOpen(false);
     setHoleMemoOpen(true);
   };
 
-  const handleHoleSlotClick = (idx: 0 | 1) => {
-    setHoleSlot(idx);
-    setHolePendingRank(null);
-  };
-
-  const handleHoleRank = (r: Rank) => setHolePendingRank(r);
-
-  const handleHoleSuit = (s: Suit) => {
-    if (holePendingRank === null) return;
-    const card: Card = { rank: holePendingRank, suit: s };
-    const next: [Card | null, Card | null] = [...holeCards] as [Card | null, Card | null];
-    next[holeSlot] = card;
-    setHolePendingRank(null);
-    setHoleCards(next);
-    // 両スロット埋まったらエンジンへ反映。初期入力画面では入力完了でアクションへ進む
-    // （後入力パネルはフェーズを進めずに開いたまま）
-    if (next[0] && next[1]) {
-      commitHoleCards([next[0], next[1]]);
+  /** 手札の枠が変わったとき。2枚そろえばエンジンへ反映し、初期入力画面ならアクションへ進む */
+  const updateHoleSlots = (next: PartialCard[]) => {
+    setHoleSlots(next);
+    const [c0, c1] = next;
+    if (isCompleteCard(c0) && isCompleteCard(c1)) {
+      commitHoleCards([c0, c1]);
+      // 後入力パネルはフェーズを進めずに開いたまま
       if (!holeMemoOpen) startAction();
-      return;
     }
-    // 次の空きスロットへ
-    if (holeSlot === 0 && next[1] === null) setHoleSlot(1);
-    else if (holeSlot === 1 && next[0] === null) setHoleSlot(0);
   };
 
-  const handleHoleClear = (idx: 0 | 1) => {
-    const next: [Card | null, Card | null] = [...holeCards] as [Card | null, Card | null];
-    next[idx] = null;
-    setHoleCards(next);
-    commitHoleCards(null); // ペア未成立のためエンジン側はクリア
-    setHoleSlot(idx);
-    setHolePendingRank(null);
+  const handleHoleSlotChange = (idx: number, slot: PartialCard) =>
+    updateHoleSlots(holeSlots.map((p, i) => (i === idx ? slot : p)));
+
+  // 1枚だけ空にする。ペアが崩れるのでエンジン側の手札もクリア
+  const handleHoleRemove = (idx: number) => {
+    setHoleSlots(holeSlots.map((p, i) => (i === idx ? EMPTY_PART : p)));
+    commitHoleCards(null);
   };
 
-  const cardDisp = (card: Card | null) => {
-    if (!card) return null;
-    const suit = SUITS.find((s) => s.value === card.suit);
-    return { label: `${card.rank}${suit?.label ?? ''}`, color: suit?.color ?? 'var(--color-text)' };
+  // 2枚とも空にして入力し直す
+  const handleHoleClearAll = () => {
+    setHoleSlots([EMPTY_PART, EMPTY_PART]);
+    commitHoleCards(null);
   };
 
   /** カードを "rank+suit" の文字列に変換 */
@@ -169,17 +145,8 @@ export default function HandInput({ session, handNumber, onSave, onCancel, onUpd
 
   /** ホールカード入力フェーズの使用済みセット（先行入力メモのボードカードも含む） */
   const holeUsedSet = new Set<string>([
-    ...holeCards
-      .filter((c, i): c is Card => c !== null && i !== holeSlot)
-      .map(cardKey),
     ...BOARD_STREETS.flatMap((st) => state.boards[st].filter((c): c is Card => c !== null).map(cardKey)),
   ]);
-
-  const isHoleRankFullyUsed = (r: Rank): boolean =>
-    SUITS.every((s) => holeUsedSet.has(`${r}${s.value}`));
-
-  const isHoleSuitUsed = (r: Rank, s: Suit): boolean =>
-    holeUsedSet.has(`${r}${s}`);
 
   const posLabels = POSITION_LABELS_BY_COUNT[players.length] ?? [];
   const actorIdx = players.findIndex((p) => p.id === actorId);
@@ -293,15 +260,8 @@ export default function HandInput({ session, handNumber, onSave, onCancel, onUpd
         const filled = holeCards.filter((c): c is Card => c !== null);
         const need = holeCards.filter((c) => c === null).length;
         const picked = pickRandomCards(filled, need);
-        const next: [Card | null, Card | null] = [...holeCards] as [Card | null, Card | null];
         let pi = 0;
-        next.forEach((c, i) => { if (c === null && pi < picked.length) next[i] = picked[pi++]; });
-        setHolePendingRank(null);
-        setHoleCards(next);
-        if (next[0] && next[1]) {
-          commitHoleCards([next[0], next[1]]);
-          if (!holeMemoOpen) startAction();
-        }
+        updateHoleSlots(holeCards.map((c) => c ?? (pi < picked.length ? picked[pi++] : EMPTY_PART)));
       }}
       disabled={holeAllFilled}
     >
@@ -309,75 +269,15 @@ export default function HandInput({ session, handNumber, onSave, onCancel, onUpd
     </button>
   ) : null;
 
-  // 手札入力のスロット＋ランク/スーツピッカー（初期入力画面・後入力パネルで共用）
+  // 手札入力の枠＋ランク/スーツピッカー（初期入力画面・後入力パネルで共用）
   const holePickerBody = (
-    <>
-      <div className="board-input__slots">
-        {([0, 1] as const).map((idx) => {
-          const disp = cardDisp(holeCards[idx]);
-          const isActive = holeSlot === idx;
-          return (
-            <button
-              key={idx}
-              type="button"
-              className={`board-slot ${isActive ? 'board-slot--active' : ''} ${holeCards[idx] ? 'board-slot--filled' : ''}`}
-              onClick={() => handleHoleSlotClick(idx)}
-            >
-              {disp ? (
-                <>
-                  <span className="board-slot__card" style={{ color: disp.color }}>{disp.label}</span>
-                  <span
-                    className="board-slot__clear"
-                    role="button"
-                    onClick={(e) => { e.stopPropagation(); handleHoleClear(idx); }}
-                  >×</span>
-                </>
-              ) : (
-                <span className="board-slot__empty">{idx + 1}</span>
-              )}
-            </button>
-          );
-        })}
-      </div>
-
-      <div className="board-picker-panel">
-        <div className="board-picker__ranks">
-          {RANKS.map((r) => {
-            const fullyUsed = isHoleRankFullyUsed(r);
-            return (
-              <button
-                key={r}
-                type="button"
-                className={`rank-btn ${holePendingRank === r ? 'rank-btn--active' : ''} ${fullyUsed ? 'rank-btn--used' : ''}`}
-                onClick={() => { if (!fullyUsed) handleHoleRank(r); }}
-                disabled={fullyUsed}
-              >
-                {r}
-              </button>
-            );
-          })}
-        </div>
-        {/* スーツ選択（ランク選択後にアクティブ化） */}
-        <div className={`board-picker__suits ${holePendingRank ? 'board-picker__suits--active' : ''}`}>
-          {SUITS.map((s) => {
-            const used = holePendingRank ? isHoleSuitUsed(holePendingRank, s.value) : false;
-            return (
-              <button
-                key={s.value}
-                type="button"
-                className={`suit-btn suit-btn--large ${used ? 'suit-btn--used' : ''}`}
-                style={{ color: used ? '#4b5563' : s.color }}
-                onClick={() => { if (holePendingRank) handleHoleSuit(s.value); }}
-                disabled={!holePendingRank || used}
-                tabIndex={holePendingRank ? 0 : -1}
-              >
-                {s.label}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-    </>
+    <CardPickerPanel
+      slots={holeSlots}
+      usedSet={holeUsedSet}
+      onSlotChange={handleHoleSlotChange}
+      onClear={handleHoleClearAll}
+      onRemove={handleHoleRemove}
+    />
   );
 
   return (

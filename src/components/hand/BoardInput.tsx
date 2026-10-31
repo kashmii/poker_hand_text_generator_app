@@ -1,15 +1,9 @@
 import { useState, type ReactNode } from 'react';
-import type { Card, Rank, Suit } from '../../types/poker';
+import type { Card } from '../../types/poker';
 import type { Street } from './types';
 import { pickRandomCards } from '../../utils/randomCard';
-
-const RANKS: Rank[] = ['A', 'K', 'Q', 'J', 'T', '9', '8', '7', '6', '5', '4', '3', '2'];
-const SUITS: { value: Suit; label: string; color: string }[] = [
-  { value: 'h', label: '♥', color: '#e53e3e' },
-  { value: 'd', label: '♦', color: '#e53e3e' },
-  { value: 'c', label: '♣', color: 'var(--color-text)' },
-  { value: 's', label: '♠', color: 'var(--color-text)' },
-];
+import { EMPTY_PART, isCompleteCard, mergeSlots, type PartialCard } from '../../utils/cardPick';
+import CardPickerPanel from './CardPickerPanel';
 
 const STREET_LABELS: Record<string, string> = {
   flop: 'フロップ',
@@ -35,12 +29,6 @@ interface Props {
   confirmLabel?: string;
 }
 
-function cardDisplay(card: Card | null) {
-  if (!card) return null;
-  const suit = SUITS.find((s) => s.value === card.suit);
-  return { label: `${card.rank}${suit?.label ?? ''}`, color: suit?.color ?? 'var(--color-text)' };
-}
-
 /** card が usedSet に含まれるか判定 */
 function cardKey(card: Card) {
   return `${card.rank}${card.suit}`;
@@ -49,71 +37,40 @@ function cardKey(card: Card) {
 export default function BoardInput({
   street, title, titleExtra, cards, groupStarts = [], usedCards = [], onCardChange, onConfirm, onBack, confirmLabel = '確定',
 }: Props) {
-  // 現在入力中のスロット（0〜cards.length-1）、nullなら選択待ち
-  const [activeSlot, setActiveSlot] = useState<number | null>(
-    // 最初の空きスロットを自動選択
-    cards.findIndex((c) => c === null) !== -1 ? cards.findIndex((c) => c === null) : null
-  );
-  const [pendingRank, setPendingRank] = useState<Rank | null>(null);
+  // 確定前の枠の入力途中（ランクだけ・スーツだけ）。確定カードは cards（親）が持つ
+  const [partials, setPartials] = useState<PartialCard[]>(() => cards.map(() => EMPTY_PART));
 
   const label = title ?? `${street ? STREET_LABELS[street] ?? street : ''}のカードを入力`;
   const allFilled = cards.every((c) => c !== null);
+  const slots = mergeSlots(cards, partials);
 
-  // 使用済みカードのセット（外部 + このストリートの他スロット）
-  const buildUsedSet = (excludeSlot: number | null): Set<string> => {
-    const set = new Set<string>(usedCards.map(cardKey));
-    cards.forEach((c, i) => {
-      if (c && i !== excludeSlot) set.add(cardKey(c));
-    });
-    return set;
-  };
+  // この入力欄以外で使用済みのカード
+  const usedSet = new Set<string>(usedCards.map(cardKey));
 
-  // activeSlot を除いた使用済みセット（現在編集中スロットのカードは除外して選択可能にする）
-  const usedSet = buildUsedSet(activeSlot);
+  const setPartial = (idx: number, part: PartialCard) =>
+    setPartials((prev) => prev.map((p, i) => (i === idx ? part : p)));
 
-  // ランクが完全使用済みか（4スーツ全て used）
-  const isRankFullyUsed = (r: Rank): boolean =>
-    SUITS.every((s) => usedSet.has(`${r}${s.value}`));
-
-  // 特定のランク+スーツが使用済みか
-  const isSuitUsed = (r: Rank, s: Suit): boolean => usedSet.has(`${r}${s}`);
-
-  const handleSlotClick = (idx: number) => {
-    setActiveSlot(idx);
-    setPendingRank(null);
-  };
-
-  const handleRank = (r: Rank) => {
-    if (isRankFullyUsed(r)) return;
-    setPendingRank(r);
-  };
-
-  const handleSuit = (s: Suit) => {
-    if (pendingRank === null || activeSlot === null) return;
-    if (isSuitUsed(pendingRank, s)) return;
-    const newCards = cards.map((c, i) => (i === activeSlot ? { rank: pendingRank, suit: s } : c));
-    onCardChange(activeSlot, { rank: pendingRank, suit: s });
-    setPendingRank(null);
-    // 全スロットが埋まったら自動確定
-    if (newCards.every((c) => c !== null)) {
-      setActiveSlot(null);
-      onConfirm();
+  const handleSlotChange = (idx: number, slot: PartialCard) => {
+    if (!isCompleteCard(slot)) {
+      setPartial(idx, slot);
       return;
     }
-    // 次の空きスロットへ自動移動
-    const nextEmpty = newCards.findIndex((c, i) => i > activeSlot && c === null);
-    if (nextEmpty !== -1) {
-      setActiveSlot(nextEmpty);
-    } else {
-      const anyEmpty = newCards.findIndex((c, i) => i !== activeSlot && c === null);
-      setActiveSlot(anyEmpty !== -1 ? anyEmpty : null);
-    }
+    setPartial(idx, EMPTY_PART);
+    onCardChange(idx, slot);
+    // 全スロットが埋まったら自動確定
+    if (cards.every((c, i) => i === idx || c !== null)) onConfirm();
   };
 
-  const handleClear = (idx: number) => {
-    onCardChange(idx, null);
-    setActiveSlot(idx);
-    setPendingRank(null);
+  // 1枚だけ空にする（フロップ・ボードメモ）
+  const handleRemove = (idx: number) => {
+    if (cards[idx]) onCardChange(idx, null);
+    setPartial(idx, EMPTY_PART);
+  };
+
+  // 全スロットを空にして入力し直す
+  const handleClearAll = () => {
+    cards.forEach((c, i) => { if (c) onCardChange(i, null); });
+    setPartials(cards.map(() => EMPTY_PART));
   };
 
   // DEV only: 未入力スロットをランダムに埋めて自動確定
@@ -127,8 +84,7 @@ export default function BoardInput({
         onCardChange(i, picked[pickIdx++]);
       }
     });
-    setPendingRank(null);
-    setActiveSlot(null);
+    setPartials(cards.map(() => EMPTY_PART));
     // 全スロットが埋まる（空きが全部picked）なら自動確定
     if (need === picked.length) {
       onConfirm();
@@ -161,76 +117,15 @@ export default function BoardInput({
         )}
       </div>
 
-      {/* カードスロット群 */}
-      <div className="board-input__slots">
-        {cards.map((card, i) => {
-          const disp = cardDisplay(card);
-          const isActive = activeSlot === i;
-          return (
-            <button
-              key={i}
-              type="button"
-              className={`board-slot ${isActive ? 'board-slot--active' : ''} ${card ? 'board-slot--filled' : ''} ${groupStarts.includes(i) ? 'board-slot--group-start' : ''}`}
-              onClick={() => handleSlotClick(i)}
-            >
-              {disp ? (
-                <>
-                  <span className="board-slot__card" style={{ color: disp.color }}>{disp.label}</span>
-                  <span
-                    className="board-slot__clear"
-                    role="button"
-                    onClick={(e) => { e.stopPropagation(); handleClear(i); }}
-                  >×</span>
-                </>
-              ) : (
-                <span className="board-slot__empty">{i + 1}</span>
-              )}
-            </button>
-          );
-        })}
-      </div>
-
-      {/* ランク・スーツ選択パネル（常時DOM、activeSlotなし時は非アクティブ） */}
-      <div className={`board-picker-panel ${activeSlot === null ? 'board-picker-panel--inactive' : ''}`}>
-        {/* ランク選択 */}
-        <div className="board-picker__ranks">
-          {RANKS.map((r) => {
-            const fullyUsed = isRankFullyUsed(r);
-            return (
-              <button
-                key={r}
-                type="button"
-                className={`rank-btn ${pendingRank === r ? 'rank-btn--active' : ''} ${fullyUsed ? 'rank-btn--used' : ''}`}
-                onClick={() => handleRank(r)}
-                disabled={activeSlot === null || fullyUsed}
-                tabIndex={activeSlot === null ? -1 : 0}
-              >
-                {r}
-              </button>
-            );
-          })}
-        </div>
-
-        {/* スーツ選択（ランク選択後にアクティブ化） */}
-        <div className={`board-picker__suits ${pendingRank ? 'board-picker__suits--active' : ''}`}>
-          {SUITS.map((s) => {
-            const used = pendingRank ? isSuitUsed(pendingRank, s.value) : false;
-            return (
-              <button
-                key={s.value}
-                type="button"
-                className={`suit-btn suit-btn--large ${used ? 'suit-btn--used' : ''}`}
-                style={{ color: used ? '#4b5563' : s.color }}
-                onClick={() => { if (pendingRank) handleSuit(s.value); }}
-                disabled={!pendingRank || used}
-                tabIndex={pendingRank ? 0 : -1}
-              >
-                {s.label}
-              </button>
-            );
-          })}
-        </div>
-      </div>
+      {/* カード枠＋ランク・スーツ選択パネル。1枚だけのターン・リバーは × なし（クリアで足りる） */}
+      <CardPickerPanel
+        slots={slots}
+        usedSet={usedSet}
+        onSlotChange={handleSlotChange}
+        onClear={handleClearAll}
+        onRemove={cards.length > 1 ? handleRemove : undefined}
+        groupStarts={groupStarts}
+      />
 
       {/* 戻るはタイトル行へ移動。全スロット入力済みのときだけ下部に確定ボタンを出す
           （先行入力などで自動確定されないケース用） */}

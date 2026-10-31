@@ -27,7 +27,7 @@ export function mergeSlots(cards: (Card | null)[], partials: PartialCard[]): Par
 const partKind = (part: CardPart): 'rank' | 'suit' => ('rank' in part ? 'rank' : 'suit');
 
 /** ランク／スーツを入れる枠: その種類がまだ入っていない一番左の枠。なければ null */
-export function findTargetSlot(slots: PartialCard[], kind: 'rank' | 'suit'): number | null {
+function findTargetSlot(slots: PartialCard[], kind: 'rank' | 'suit'): number | null {
   const idx = slots.findIndex((s) => s[kind] === null);
   return idx === -1 ? null : idx;
 }

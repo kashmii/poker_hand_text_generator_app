@@ -5,7 +5,7 @@ import { RANKS, SUIT_VALUES, cardKey, filledCards } from './card';
  * 使用済みカードを除いたデッキからランダムに n 枚選んで返す。
  * n 枚取れない場合（デッキ不足）は取れた分だけ返す。
  */
-export function pickRandomCards(usedCards: Card[], count: number): Card[] {
+function pickRandomCards(usedCards: Card[], count: number): Card[] {
   const usedSet = new Set(usedCards.map(cardKey));
   const available: Card[] = [];
   for (const rank of RANKS) {

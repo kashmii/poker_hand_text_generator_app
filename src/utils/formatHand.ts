@@ -3,26 +3,35 @@ import type {
   SessionConfig,
   Action,
   Card,
+  BoardStreet,
   Player,
   ShowdownEntry,
-  Street,
 } from '../types/poker';
 import { cardLabel } from './card';
 import { positionLabels } from './positions';
-import { STREETS } from './streets';
+import { BOARD_STREETS } from './streets';
 
-// ========== カード表示 ==========
+// ========== 表示用ヘルパー ==========
 function formatCardsSpaced(cards: Card[]): string {
   return cards.map(cardLabel).join(' ');
 }
 
-// ========== ポジション名 ==========
+function formatMoney(amount: number, currency: string): string {
+  return `${currency}${amount.toLocaleString()}`;
+}
+
 function getPositionLabel(playerIdx: number, totalPlayers: number): string {
   return (
     positionLabels(totalPlayers)[playerIdx] ??
     `Seat${playerIdx + 1}`
   );
 }
+
+const STREET_HEADERS: Record<BoardStreet, string> = {
+  flop: 'Flop',
+  turn: 'Turn',
+  river: 'River',
+};
 
 // ========== アクション文字列 ==========
 // currentBet: このアクション直前のストリート内ベット水準（コール必要額）。
@@ -33,32 +42,30 @@ function formatAction(
   currency: string,
   currentBet: number,
 ): string {
-  const c = currency;
+  const amt = action.amount ?? 0;
+  const money = formatMoney(amt, currency);
   switch (action.type) {
     case 'fold':
       return `${posLabel} folds`;
     case 'check':
       return `${posLabel} checks`;
     case 'call':
-      return `${posLabel} calls ${c}${(action.amount ?? 0).toLocaleString()}`;
+      return `${posLabel} calls ${money}`;
     case 'bet':
-      return `${posLabel} bets ${c}${(action.amount ?? 0).toLocaleString()}`;
+      return `${posLabel} bets ${money}`;
     case 'raise':
-      return `${posLabel} raises ${c}${(action.amount ?? 0).toLocaleString()}`;
-    case 'allin': {
-      const amt = action.amount ?? 0;
-      const amtStr = `${c}${amt.toLocaleString()}`;
+      return `${posLabel} raises ${money}`;
+    case 'allin':
       // ストリート内に未ベット(currentBet<=0)で先頭オールイン → bet
       // 既存ベットを超える → raise、超えない（＝ショート額でのコール）→ call
       if (amt > currentBet) {
         return currentBet <= 0
-          ? `${posLabel} bets ${amtStr} and is all-in`
-          : `${posLabel} raises ${amtStr} and is all-in`;
+          ? `${posLabel} bets ${money} and is all-in`
+          : `${posLabel} raises ${money} and is all-in`;
       }
-      return `${posLabel} calls ${amtStr} and is all-in`;
-    }
+      return `${posLabel} calls ${money} and is all-in`;
     case 'straddle':
-      return `${posLabel} straddles ${c}${(action.amount ?? 0).toLocaleString()}`;
+      return `${posLabel} straddles ${money}`;
     default:
       return '';
   }
@@ -86,6 +93,35 @@ function formatStreetActions(
   return out;
 }
 
+/**
+ * SB・BB を払うプレイヤー。players は [BTN, SB, BB, ...] の順。
+ * 2人（ヘッズアップ）は [SB/BTN, BB] なので BTN が SB を払う（useHandFlow と同じ扱い）。
+ */
+function blindPlayers(players: Player[]): { sbPlayer: Player; bbPlayer: Player } {
+  if (players.length === 2) return { sbPlayer: players[0], bbPlayer: players[1] };
+  return { sbPlayer: players[1] ?? players[0], bbPlayer: players[2] ?? players[1] };
+}
+
+/**
+ * 1ストリートのアクションでポットに入った額。
+ * initial はストリート開始時点の各プレイヤーの投入額（プリフロップは SB/BB のポスト分）。
+ * アクションの amount は call だけが「追加額」、bet/raise/allin/straddle は「そのストリートでの合計額」。
+ */
+function streetPotAdded(actions: Action[], initial: Record<string, number>): number {
+  const contributions = { ...initial };
+  let added = 0;
+  for (const a of actions) {
+    if (a.type === 'fold' || a.type === 'check') continue;
+    const prev = contributions[a.playerId] ?? 0;
+    const total = a.type === 'call' ? prev + (a.amount ?? 0) : (a.amount ?? 0);
+    if (total > prev) {
+      added += total - prev;
+      contributions[a.playerId] = total;
+    }
+  }
+  return added;
+}
+
 // ========== メイン出力生成 ==========
 export function generateHandText(
   hand: HandData,
@@ -110,18 +146,13 @@ export function generateHandText(
     return playerId === heroId ? `${label} (hero)` : label;
   };
 
-  /** ストリート開始時点のfold済みプレイヤーIDセットを計算する */
-  const foldedBeforeStreet = (upTo: Street): Set<string> => {
-    const folded = new Set<string>();
-    const upToIdx = STREETS.indexOf(upTo);
-    for (let si = 0; si < upToIdx; si++) {
-      const s = STREETS[si];
-      const actions = s === 'preflop'
-        ? hand.streets.preflop.actions
-        : (hand.streets[s]?.actions ?? []);
-      actions.forEach((a) => { if (a.type === 'fold') folded.add(a.playerId); });
-    }
-    return folded;
+  // ストリートを進めながら、次のストリート開始時点のポットと fold 済みプレイヤーを積み上げる
+  // （straddle は preflop のアクションに含まれているので自動的に加算される）
+  let pot = smallBlind + bigBlind + ante;
+  const folded = new Set<string>();
+  const settleStreet = (actions: Action[], initial: Record<string, number>) => {
+    pot += streetPotAdded(actions, initial);
+    actions.forEach((a) => { if (a.type === 'fold') folded.add(a.playerId); });
   };
 
   const lines: string[] = [];
@@ -155,56 +186,26 @@ export function generateHandText(
   const { sbPlayer, bbPlayer } = blindPlayers(players);
   // BBアンティはBBのみが払う（Big Blind Ante）
   if (ante > 0) {
-    lines.push(
-      `${posLabelWithHero(bbPlayer.id)} posts big blind ante ${c}${ante.toLocaleString()}`,
-    );
+    lines.push(`${posLabelWithHero(bbPlayer.id)} posts big blind ante ${formatMoney(ante, c)}`);
   }
-  lines.push(
-    `${posLabelWithHero(sbPlayer.id)} posts small blind ${c}${smallBlind.toLocaleString()}`,
-  );
-  lines.push(
-    `${posLabelWithHero(bbPlayer.id)} posts big blind ${c}${bigBlind.toLocaleString()}`,
-  );
+  lines.push(`${posLabelWithHero(sbPlayer.id)} posts small blind ${formatMoney(smallBlind, c)}`);
+  lines.push(`${posLabelWithHero(bbPlayer.id)} posts big blind ${formatMoney(bigBlind, c)}`);
   // プリフロップはBBがコール必要額の起点
-  lines.push(...formatStreetActions(hand.streets.preflop.actions, bigBlind, posLabelWithHero, c));
+  const preflopActions = hand.streets.preflop.actions;
+  lines.push(...formatStreetActions(preflopActions, bigBlind, posLabelWithHero, c));
+  // ポスト分を初期投入額にする（アンティは別枠。BB の 3bet などで二重に数えないため）
+  settleStreet(preflopActions, { [sbPlayer.id]: smallBlind, [bbPlayer.id]: bigBlind });
 
-  // --- フロップ ---
-  if (hand.streets.flop) {
-    const preflopPot = computeStreetPot(hand, 'preflop', session);
-    const flopFolded = foldedBeforeStreet('flop');
-    const flopPlayers = totalPlayers - flopFolded.size;
-    const boardStr = hand.streets.flop.board
-      ? `[${formatCardsSpaced(hand.streets.flop.board)}]`
-      : '';
+  // --- フロップ・ターン・リバー ---
+  for (const street of BOARD_STREETS) {
+    const data = hand.streets[street];
+    if (!data) continue;
+    const boardStr = data.board ? `[${formatCardsSpaced(data.board)}]` : '';
+    const playersInHand = totalPlayers - folded.size;
     lines.push('');
-    lines.push(`Flop (${flopPlayers} players, Pot size: ${preflopPot.toLocaleString()}) ${boardStr}`);
-    lines.push(...formatStreetActions(hand.streets.flop.actions, 0, posLabelWithHero, c));
-  }
-
-  // --- ターン ---
-  if (hand.streets.turn) {
-    const turnPot = computeStreetPot(hand, 'flop', session);
-    const turnFolded = foldedBeforeStreet('turn');
-    const turnPlayers = totalPlayers - turnFolded.size;
-    const boardStr = hand.streets.turn.board
-      ? `[${formatCardsSpaced(hand.streets.turn.board)}]`
-      : '';
-    lines.push('');
-    lines.push(`Turn (${turnPlayers} players, Pot size: ${turnPot.toLocaleString()}) ${boardStr}`);
-    lines.push(...formatStreetActions(hand.streets.turn.actions, 0, posLabelWithHero, c));
-  }
-
-  // --- リバー ---
-  if (hand.streets.river) {
-    const riverPot = computeStreetPot(hand, 'turn', session);
-    const riverFolded = foldedBeforeStreet('river');
-    const riverPlayers = totalPlayers - riverFolded.size;
-    const boardStr = hand.streets.river.board
-      ? `[${formatCardsSpaced(hand.streets.river.board)}]`
-      : '';
-    lines.push('');
-    lines.push(`River (${riverPlayers} players, Pot size: ${riverPot.toLocaleString()}) ${boardStr}`);
-    lines.push(...formatStreetActions(hand.streets.river.actions, 0, posLabelWithHero, c));
+    lines.push(`${STREET_HEADERS[street]} (${playersInHand} players, Pot size: ${pot.toLocaleString()}) ${boardStr}`);
+    lines.push(...formatStreetActions(data.actions, 0, posLabelWithHero, c));
+    settleStreet(data.actions, {});
   }
 
   // --- サマリー ---
@@ -226,7 +227,7 @@ export function generateHandText(
   });
   hand.winners.forEach((w) => {
     const posLabel = posLabelMap[w.playerId] ?? '';
-    const amount = `${c}${w.amount.toLocaleString()}`;
+    const amount = formatMoney(w.amount, c);
     if (w.label && winnersPerPot[w.label] > 1) {
       const potPart = hasSidePot ? w.label : 'the pot';
       lines.push(`${posLabel} splits ${potPart} ${amount}`);
@@ -244,60 +245,4 @@ export function generateHandText(
   lines.push('');
 
   return lines.join('\n');
-}
-
-/**
- * SB・BB を払うプレイヤー。players は [BTN, SB, BB, ...] の順。
- * 2人（ヘッズアップ）は [SB/BTN, BB] なので BTN が SB を払う（useHandFlow と同じ扱い）。
- */
-function blindPlayers(players: Player[]): { sbPlayer: Player; bbPlayer: Player } {
-  if (players.length === 2) return { sbPlayer: players[0], bbPlayer: players[1] };
-  return { sbPlayer: players[1] ?? players[0], bbPlayer: players[2] ?? players[1] };
-}
-
-/**
- * 指定ストリート終了時点（＝次ストリート開始時点）のポットサイズを計算する。
- * SB/BB/anteの強制投資 + 各ストリートの投入額を積算。
- * アクションの amount は call だけが「追加額」、bet/raise/allin/straddle は「そのストリートでの合計額」。
- */
-function computeStreetPot(
-  hand: HandData,
-  upToStreet: Street,
-  session: SessionConfig,
-): number {
-  const { players, smallBlind, bigBlind, ante } = session;
-  let pot = smallBlind + bigBlind + ante;
-
-  // straddleはpreflopのアクションに含まれているので自動的に加算される
-  const upToIdx = STREETS.indexOf(upToStreet);
-
-  for (let si = 0; si <= upToIdx; si++) {
-    const street = STREETS[si];
-    const actions =
-      street === 'preflop'
-        ? hand.streets.preflop.actions
-        : (hand.streets[street]?.actions ?? []);
-
-    // ストリート内の各プレイヤーの投入額。プリフロップは SB/BB のポスト分から始まる
-    // （アンティは別枠なので含めない。BB の 3bet などで二重に数えないため）
-    const contributions: Record<string, number> = {};
-    if (street === 'preflop' && players.length >= 2) {
-      const { sbPlayer, bbPlayer } = blindPlayers(players);
-      contributions[sbPlayer.id] = smallBlind;
-      contributions[bbPlayer.id] = bigBlind;
-    }
-
-    for (const a of actions) {
-      if (a.type === 'fold' || a.type === 'check') continue;
-      const prev = contributions[a.playerId] ?? 0;
-      const total = a.type === 'call' ? prev + (a.amount ?? 0) : (a.amount ?? 0);
-      const added = total - prev;
-      if (added > 0) {
-        pot += added;
-        contributions[a.playerId] = total;
-      }
-    }
-  }
-
-  return pot;
 }

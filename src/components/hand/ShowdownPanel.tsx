@@ -5,7 +5,7 @@ import { pickRandomCards } from '../../utils/randomCard';
 import type { Pot, WinnerEntry } from '../../utils/sidePots';
 import type { ShowdownEvaluation } from '../../utils/evaluateShowdown';
 import { splitPot } from '../../utils/splitPot';
-import { buildPostflopOrder } from './useHandFlow';
+import { buildPostflopOrder } from './handFlowReducer';
 import { EMPTY_PART, isCompleteCard, type PartialCard } from '../../utils/cardPick';
 import { SUITS } from './suits';
 import CardPickerPanel from './CardPickerPanel';

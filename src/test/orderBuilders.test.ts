@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   buildPreflopOrder,
   buildPostflopOrder,
-} from '../components/hand/useHandFlow';
+} from '../components/hand/handFlowReducer';
 
 // players配列のレイアウト: [BTN=0, SB=1, BB=2, UTG=3, CO=4, ...]
 
